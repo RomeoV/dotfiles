@@ -1,1 +1,1 @@
-nmap <leader>tc :execute "Texec " . expand("%:r")<CR>
+nmap <leader>\c :execute "Texec " . expand("%:r")<CR>

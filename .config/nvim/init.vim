@@ -24,7 +24,7 @@ set backupdir=~/.config/nvim/backup
 set clipboard+=unnamedplus " Use system clipboard
 set lazyredraw             " Don't redraw when execing macros
 set foldlevelstart=20
-set foldmethod=syntax
+set foldmethod=indent
 set colorcolumn=80
 "set cmdheight=2            " More space for messages
 
@@ -50,11 +50,13 @@ endif
 
 call plug#begin('~/.vim/plugged')
 
+Plug 'neovim/nvim-lspconfig'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } " Install fzf
 Plug 'junegunn/fzf.vim'                                           " Use fuzzy finder, eg :Files
 Plug 'junegunn/vim-peekaboo'                                      " See buffers
 Plug 'junegunn/vim-easy-align'                                    " Align lines
 Plug 'junegunn/seoul256.vim'                                      " Colorscheme
+Plug 'morhetz/gruvbox'
 Plug 'junegunn/limelight.vim'                                     " Concentration mode
 Plug 'SirVer/ultisnips'                                           " Snippet manager
 Plug 'honza/vim-snippets'                                         " Snippet compilation
@@ -72,6 +74,8 @@ Plug 'tpope/vim-repeat'                                           " Repeat more
 Plug 'tpope/vim-sleuth'                                           " Repeat more
 Plug 'lervag/vimtex'                                              " Many usefull Latex commands (eg compile and view)
 Plug 'justinmk/vim-sneak'                                         " Add s<key><key> to zoom across file
+Plug 'unblevable/quick-scope'
+Plug 'easymotion/vim-easymotion'
 Plug 'kassio/neoterm'                                             " Provides useful terminal commands.
 Plug 'luochen1990/rainbow'
 "Plug 'jiangmiao/auto-pairs'
@@ -80,10 +84,10 @@ Plug 'suan/vim-instant-markdown'
 Plug 'plasticboy/vim-markdown'
 Plug 'shime/vim-livedown'
 " Plug 'prabirshrestha/async.vim'
-Plug 'autozimu/LanguageClient-neovim', {
-   \ 'branch': 'next',
-   \ 'do': 'bash install.sh',
-   \ }
+" Plug 'autozimu/LanguageClient-neovim', {
+"    \ 'branch': 'next',
+"    \ 'do': 'bash install.sh',
+"    \ }
 " Plug 'neoclide/coc.nvim', {'branch': 'release'}
 "Plug 'dbgx/lldb.nvim', {'for': 'cpp'}
 Plug 'rhysd/devdocs.vim'
@@ -92,12 +96,20 @@ Plug '907th/vim-auto-save'
 Plug 'jeetsukumaran/vim-pythonsense'                                            " Python text objects
 Plug 'easymotion/vim-easymotion'
 Plug 'JuliaEditorSupport/julia-vim'
+Plug 'takac/vim-hardtime'
 
 call plug#end()
 
 """""" Plugin configuration """"""
-colo seoul256        " Use colorscheme
+" colo seoul256        " Use colorscheme
+let g:gruvbox_contrast_dark='medium'
+colorscheme gruvbox
 set background=dark
+
+" LSP config
+lua << EOF
+require'lspconfig'.pyright.setup{}
+EOF
 
 " Config fzf.
 noremap <leader>b :Buffers<CR>
@@ -113,7 +125,7 @@ noremap <leader>m :Maps<CR>
 " Config gutentags
 let g:gutentags_ctags_tagfile=".tags"
 " Config deoplete
-let g:deoplete#enable_at_startup = 1
+let g:deoplete#enable_at_startup = 0
 "autocmd InsertLeave * if pumvisible() == 0 | pclose | endif
 let g:LanguageClient_autoStart = 1
 let g:LanguageClient_selectionUI = "fzf"
@@ -129,7 +141,8 @@ let g:rainbow_active = 0
 
 " Config AutoSave
 let g:auto_save = 1
-let g:auto_save_silent = 0
+let g:auto_save_silent = 1
+let g:auto_save_events = ["InsertLeave", "TextChanged"]
 
 " Config python runtime for neovim
 "let g:python3_host_prog='/home/romeo/anaconda3/bin/python'
@@ -156,15 +169,19 @@ let g:neoterm_autoinsert=1
 let g:neoterm_repl_python="ipython"
 let g:neoterm_autoscroll=1
 let g:neoterm_auto_repl_cmd=1
-nmap <leader>tt <Plug>(neoterm-repl-send)
-xmap <leader>t <Plug>(neoterm-repl-send)
-nmap <leader>tl <Plug>(neoterm-repl-send-line)
-nmap <leader>tf :TREPLSendFile<CR>
+let g:neoterm_automap_keys=""
+nmap <leader>\ <Plug>(neoterm-repl-send)
+vmap <leader>\ <Plug>(neoterm-repl-send)
+nmap <leader>\l <Plug>(neoterm-repl-send-line)
+nmap <leader>\f :TREPLSendFile<CR>
 
 " Config tagbar
+let g:tagbar_autofocus=1
 let g:tagbar_autoopen=1
 let g:tagbar_autoclose=1
 nmap <leader>to :TagbarOpen<CR>
+nmap <leader>tc :TagbarClose<CR>
+nmap <leader>tt :TagbarToggle<CR>
 
 " Config vimtex
 let g:vimtex_view_general_viewer = 'evince'

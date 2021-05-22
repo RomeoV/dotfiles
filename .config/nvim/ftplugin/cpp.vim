@@ -1,6 +1,5 @@
 " set makeprg=cmake\ --build\ build\ -j3
-FocusDispatch -dir=build ctest . -V
-nmap <leader>t :TagbarToggle<CR>
+" FocusDispatch -dir=build ctest . -V
 let g:tagbar_autoclose = 1
 let g:tagbar_autofocus = 1
 

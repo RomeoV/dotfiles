@@ -1,1 +1,1 @@
-nmap <leader>tc :Texec include("%")<CR>
+nmap <leader>\c :Texec include("%")<CR>

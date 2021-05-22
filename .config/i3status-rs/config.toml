@@ -8,14 +8,14 @@ alias = "/"
 info_type = "available"
 unit = "GB"
 interval = 20
-warning = 20.0
-alert = 10.0
+warning = 10.0
+alert = 5.0
 
 [[block]]
 block = "memory"
 display_type = "memory"
-format_mem = "{Mup}%"
-format_swap = "{SUp}%"
+format_mem = "{mem_used_percents}%"
+format_swap = "{swap_used_percents}%"
 
 [[block]]
 block = "cpu"
@@ -28,7 +28,7 @@ format = "{1m}"
 
 [[block]]
 block = "net"
-format = "{ssid} {signal_strength} {speed_down}"
+format = "{ssid} {signal_strength}"
 interval = 5
 
 [[block]]
@@ -50,6 +50,14 @@ message = "Take a break!"
 break_message = "Back to work!"
 use_nag = true
 nag_path = "/usr/bin/swaynag"
+
+[[block]]
+block = "pacman"
+interval = 600
+format = "[{pacman}]"
+format_singular = "[{pacman}]"
+format_up_to_date = "∅"
+critical_updates_regex = "(linux |linux-lts|linux-zen|neovim)"
 
 [[block]]
 block = "time"
