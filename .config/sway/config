@@ -4,13 +4,31 @@
 #
 # Read `man 5 sway` for a complete reference.
 
+## Software you need:
+# - foot (super nice wayland terminal emulator)
+# - wob (wayland overlay bar)
+# - brightnessctl
+# - pamixer (even though we use pipewire, we still use pulse-audio mixer for config)
+# - wofi (dmenu replacement)
+# - i3status-rust (status bar) or anything else
+
 ### My own additions
 focus_follows_mouse no
-exec mkfifo $SWAYSOCK.wob
-exec tail -f $SWAYSOCK.wob | wob
 set $layout splitv
-gaps inner 1
-# seat seat0 xcursor_theme ybDMZ
+
+# Set up wob
+set $WOBSOCK $XDG_RUNTIME_DIR/wob.sock
+exec mkfifo $WOBSOCK && tail -f $WOBSOCK | wob
+
+# Make sure screen sharing works
+# See here: https://wiki.archlinux.org/title/PipeWire#xdg-desktop-portal-wlr
+# I think both these commands do roughly the same...
+#exec systemctl --user import-environment DISPLAY WAYLAND_DISPLAY SWAYSOCK
+exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
+
+# run terminal emulator in daemon mode for super fast new terminals
+# open new terminals with `footclient`
+exec foot --server
 
 
 ### Variables
@@ -23,19 +41,16 @@ set $down j
 set $up k
 set $right l
 # Your preferred terminal emulator
-set $term alacritty
+set $term footclient
 # Your preferred application launcher
 # Note: pass the final command to swaymsg so that the resulting window can be opened
 # on the original workspace that the command was run on.
-# set $menu dmenu_path | dmenu | xargs swaymsg exec --
-set $menu bemenu-run -l10 | xargs swaymsg exec --
-bindsym $mod+Mod1+l exec swaylock -c000000
+set $menu wofi --show run
 
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
 output * bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
-# output * scale 1
 #
 # Example configuration:
 #
@@ -48,7 +63,6 @@ output * bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
 # Example configuration:
 #
 # exec swayidle -w \
-#          idlehint 280 \
 #          timeout 300 'swaylock -f -c 000000' \
 #          timeout 600 'swaymsg "output * dpms off"' resume 'swaymsg "output * dpms on"' \
 #          before-sleep 'swaylock -f -c 000000'
@@ -61,31 +75,29 @@ output * bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
 #
 # Example configuration:
 #
-   input "2:7:SynPS/2_Synaptics_TouchPad" {
-       dwt enabled
-       tap enabled
-       natural_scroll enabled
-       middle_emulation enabled
-   }
+input "1739:52841:SYNA8013:00_06CB:CE69_Touchpad" {
+    #dwt enabled
+    #tap enabled
+    natural_scroll enabled
+    #middle_emulation enabled
+}
+input "1:1:AT_Translated_Set_2_keyboard" {
+    xkb_layout "us,de"
+    xkb_options "grp:alt_caps_toggle"
+}
 #
 # You can get the names of your inputs by running: swaymsg -t get_inputs
 # Read `man 5 sway-input` for more information about this section.
 
-# Pulse Audio controls
-#bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume 0 +5% #increase sound volume
-#bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume 0 -5% #decrease sound volume
-#bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute 0 toggle # mute sound
-bindsym XF86AudioRaiseVolume exec pamixer -ui 2 && pamixer --get-volume > $SWAYSOCK.wob
-bindsym XF86AudioLowerVolume exec pamixer -ud 2 && pamixer --get-volume > $SWAYSOCK.wob
-bindsym XF86AudioMute exec pamixer --toggle-mute && ( pamixer --get-mute && echo 0 > $SWAYSOCK.wob ) || pamixer --get-volume > $SWAYSOCK.wob
-
-# Sreen brightness controls
-#bindsym XF86MonBrightnessUp exec light -A 5 # increase screen brightness
-#bindsym XF86MonBrightnessDown exec light -U 5 # decrease screen brightness
-bindsym XF86MonBrightnessUp exec light -A 5 && light -G | cut -d'.' -f1 > $SWAYSOCK.wob
-bindsym XF86MonBrightnessDown exec light -U 5 && light -G | cut -d'.' -f1 > $SWAYSOCK.wob
-
 ### Key bindings
+#
+# Hardware keys
+bindsym XF86AudioRaiseVolume exec pamixer -ui 5 && pamixer --get-volume > $WOBSOCK
+bindsym XF86AudioLowerVolume exec pamixer -ud 5 && pamixer --get-volume > $WOBSOCK
+bindsym XF86AudioMute exec pamixer -t > $WOBSOCK
+bindsym XF86MonBrightnessUp exec brightnessctl set +5% && echo $(($(brightnessctl g) * 100 / $(brightnessctl m))) > $WOBSOCK
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%- && echo $(($(brightnessctl g) * 100 / $(brightnessctl m))) > $WOBSOCK
+
 #
 # Basics:
 #
@@ -134,7 +146,11 @@ bindsym XF86MonBrightnessDown exec light -U 5 && light -G | cut -d'.' -f1 > $SWA
     bindsym $mod+Shift+Down move down
     bindsym $mod+Shift+Up move up
     bindsym $mod+Shift+Right move right
-#
+
+    # Move workspace across monitors
+    bindsym $mod+less move workspace to output left
+    bindsym $mod+greater move workspace to output right
+
 # Workspaces:
 #
     # Switch to workspace
@@ -206,16 +222,16 @@ mode "resize" {
     # right will grow the containers width
     # up will shrink the containers height
     # down will grow the containers height
-    bindsym $left resize shrink width 10px
-    bindsym $down resize grow height 10px
-    bindsym $up resize shrink height 10px
-    bindsym $right resize grow width 10px
+    bindsym $left resize shrink width 30px
+    bindsym $down resize grow height 30px
+    bindsym $up resize shrink height 30px
+    bindsym $right resize grow width 30px
 
     # Ditto, with arrow keys
-    bindsym Left resize shrink width 10px
-    bindsym Down resize grow height 10px
-    bindsym Up resize shrink height 10px
-    bindsym Right resize grow width 10px
+    bindsym Left resize shrink width 30px
+    bindsym Down resize grow height 30px
+    bindsym Up resize shrink height 30px
+    bindsym Right resize grow width 30px
 
     # Return to default mode
     bindsym Return mode "default"
@@ -228,24 +244,18 @@ bindsym $mod+r mode "resize"
 #
 # Read `man 5 sway-bar` for more information about this section.
 bar {
+    font pango:DejaVu Sans Mono, FontAwesome 12
     position top
-
-    # When the status_command prints a new line to stdout, swaybar updates.
-    # The default just shows the current date and time.
-    #status_command while date +'%Y-%m-%d %l:%M:%S %p'; do sleep 1; done
-    status_command /usr/bin/i3status-rs /home/romeo/.config/i3status-rs/config.toml
-
-    #colors {
-    #    statusline #ffffff
-    #    background #323232
-    #    inactive_workspace #32323200 #32323200 #5c5c5c
-    #}
+    status_command /usr/bin/i3status-rs $HOME/.config/i3status-rust/config.toml
+    colors {
+        separator #666666
+        background #222222
+        statusline #dddddd
+        focused_workspace #0088CC #0088CC #ffffff
+        active_workspace #333333 #333333 #ffffff
+        inactive_workspace #333333 #333333 #888888
+        urgent_workspace #2f343a #900000 #ffffff
+    }
 }
-
-input type:keyboard {
-    xkb_layout us,de
-    xkb_options grp:win_space_toggle
-}
-
 
 include /etc/sway/config.d/*
