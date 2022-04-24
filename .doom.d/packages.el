@@ -1,20 +1,6 @@
 ;; -*- no-byte-compile: t; -*-
 ;;; $DOOMDIR/packages.el
 
-(package! vdiff)
-(package! vdiff-magit)
-(package! imenu-list)
-
-(package! org-ref)
-(package! org-roam)
-(package! org-roam-bibtex
-  :recipe (:host github :repo "org-roam/org-roam-bibtex"))
-(package! org-roam-server)
-(package! org-noter)
-(package! ivy-bibtex)
-(package! helm-bibtex)
-(package! company-org-roam)
-
 ;; To install a package with Doom you must declare them here and run 'doom sync'
 ;; on the command line, then restart Emacs for the changes to take effect -- or
 ;; use 'M-x doom/reload'.
@@ -22,6 +8,18 @@
 
 ;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
 ;(package! some-package)
+(package! org-inline-pdf)
+
+;; (package! org-ref)
+;;
+;; (package! helm)
+;; (package! helm-bibtex)
+;; (package! ivy-bibtex)
+(package! org-attach-screenshot)
+(package! ob-julia-vterm)
+(package! org-modern)
+
+;; (package! openwith)
 
 ;; To install a package directly from a remote git repo, you must specify a
 ;; `:recipe'. You'll find documentation on what `:recipe' accepts here:
