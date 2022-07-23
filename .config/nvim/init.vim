@@ -1,4 +1,5 @@
 """"" General settings """""
+
 set autowrite              " Save before switching files
 set undofile               " Undo after reopening file
 set noswapfile             " Disable swap file
@@ -26,7 +27,7 @@ set lazyredraw             " Don't redraw when execing macros
 set foldlevelstart=20
 set foldmethod=indent
 set colorcolumn=80
-"set cmdheight=2            " More space for messages
+set cmdheight=2            " More space for messages
 
 let mapleader = "\<Space>"             " Map leader to spacebar
 noremap <leader>e :tabnew $MYVIMRC<CR> " Shortcut to edit init.vim
@@ -50,18 +51,13 @@ endif
 
 call plug#begin('~/.vim/plugged')
 
-Plug 'neovim/nvim-lspconfig'
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } " Install fzf
-Plug 'junegunn/fzf.vim'                                           " Use fuzzy finder, eg :Files
+Plug 'lotabout/skim.vim'
 Plug 'junegunn/vim-peekaboo'                                      " See buffers
 Plug 'junegunn/vim-easy-align'                                    " Align lines
-Plug 'junegunn/seoul256.vim'                                      " Colorscheme
 Plug 'morhetz/gruvbox'
-Plug 'junegunn/limelight.vim'                                     " Concentration mode
 Plug 'SirVer/ultisnips'                                           " Snippet manager
 Plug 'honza/vim-snippets'                                         " Snippet compilation
 Plug 'Shougo/deoplete.nvim'                                       " Autocompletion engine
-" Plug 'zchee/deoplete-clang'                                       " Clang integration?
 Plug 'ludovicchabant/vim-gutentags'                               " Automatically generate tag files.
 Plug 'majutsushi/tagbar'
 Plug 'tpope/vim-fugitive'                                         " Many git commands
@@ -71,32 +67,25 @@ Plug 'tpope/vim-commentary'                                       " gc to toggle
 Plug 'tpope/vim-dispatch'                                         " :Make for better make
 Plug 'tpope/vim-vinegar'                                          " Press '-' for file browser
 Plug 'tpope/vim-repeat'                                           " Repeat more
-Plug 'tpope/vim-sleuth'                                           " Repeat more
 Plug 'lervag/vimtex'                                              " Many usefull Latex commands (eg compile and view)
-Plug 'justinmk/vim-sneak'                                         " Add s<key><key> to zoom across file
 Plug 'unblevable/quick-scope'
 Plug 'easymotion/vim-easymotion'
 Plug 'kassio/neoterm'                                             " Provides useful terminal commands.
-Plug 'luochen1990/rainbow'
-"Plug 'jiangmiao/auto-pairs'
 Plug 'godlygeek/tabular'
-Plug 'suan/vim-instant-markdown'
+" Plug 'suan/vim-instant-markdown'
 Plug 'plasticboy/vim-markdown'
-Plug 'shime/vim-livedown'
-" Plug 'prabirshrestha/async.vim'
-" Plug 'autozimu/LanguageClient-neovim', {
-"    \ 'branch': 'next',
-"    \ 'do': 'bash install.sh',
-"    \ }
-" Plug 'neoclide/coc.nvim', {'branch': 'release'}
-"Plug 'dbgx/lldb.nvim', {'for': 'cpp'}
 Plug 'rhysd/devdocs.vim'
-Plug 'daeyun/vim-matlab'
 Plug '907th/vim-auto-save'
 Plug 'jeetsukumaran/vim-pythonsense'                                            " Python text objects
-Plug 'easymotion/vim-easymotion'
 Plug 'JuliaEditorSupport/julia-vim'
+Plug 'kdheepak/JuliaFormatter.vim'
 Plug 'takac/vim-hardtime'
+
+Plug 'nvim-lua/plenary.nvim'
+Plug 'TimUntersberger/neogit'
+
+Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
+Plug 'nvim-treesitter/nvim-treesitter-textobjects'
 
 call plug#end()
 
@@ -105,11 +94,6 @@ call plug#end()
 let g:gruvbox_contrast_dark='medium'
 colorscheme gruvbox
 set background=dark
-
-" LSP config
-lua << EOF
-require'lspconfig'.pyright.setup{}
-EOF
 
 " Config fzf.
 noremap <leader>b :Buffers<CR>
@@ -120,43 +104,15 @@ noremap <leader>s :Snippets<CR>
 noremap <leader>x :Commands<CR>
 noremap <leader>m :Maps<CR>
 
-"au TermClose * nested call OnTermClose()
-
-" Config gutentags
 let g:gutentags_ctags_tagfile=".tags"
-" Config deoplete
-let g:deoplete#enable_at_startup = 0
-"autocmd InsertLeave * if pumvisible() == 0 | pclose | endif
-let g:LanguageClient_autoStart = 1
-let g:LanguageClient_selectionUI = "fzf"
-" let g:LanguageClient_changeThrottle = 4
-" let g:LanguageClient_hoverPreview="Never"
-let g:LanguageClient_diagnosticsEnable = 0
-let g:LanguageClient_diagnosticsList = "Disabled"
-" nnoremap <leader>lca :let g:LanguageClient_diagnosticsEnable=1
-" nnoremap <leader>lcd :let g:LanguageClient_diagnosticsEnable=0
-
-" Config RainbowParantheses
-let g:rainbow_active = 0
-
 " Config AutoSave
 let g:auto_save = 1
 let g:auto_save_silent = 1
 let g:auto_save_events = ["InsertLeave", "TextChanged"]
 
 " Config python runtime for neovim
-"let g:python3_host_prog='/home/romeo/anaconda3/bin/python'
+let g:python3_host_prog='/home/romeo/miniconda3/bin/python'
 "let g:python2_host_prog='/usr/bin/python2'
-
-set hidden
-" Config Language Server
-let g:LanguageClient_serverCommands = {
-    \ 'cpp': ['clangd'],
-    \ 'python': ['pyls'],
-    \ 'rust': ['rls'],
-    \ }
-nnoremap <F5> :call LanguageClient_contextMenu()<CR>
-vnoremap <F5> :call LanguageClient_contextMenu()<CR>
 
 " Config Devdocs
 nmap K <Plug>(devdocs-under-cursor)
@@ -166,14 +122,16 @@ let g:neoterm_size=8
 let g:neoterm_default_mod="botright"
 let g:neoterm_autoinsert=1
 " let g:neoterm_direct_open_repl=1
-let g:neoterm_repl_python="ipython"
+let g:neoterm_repl_python="ipython --no-autoindent"
 let g:neoterm_autoscroll=1
 let g:neoterm_auto_repl_cmd=1
 let g:neoterm_automap_keys=""
 nmap <leader>\ <Plug>(neoterm-repl-send)
 vmap <leader>\ <Plug>(neoterm-repl-send)
 nmap <leader>\l <Plug>(neoterm-repl-send-line)
-nmap <leader>\f :TREPLSendFile<CR>
+nmap <leader>\b :TREPLSendFile<CR>
+nmap <leader>\f :Texec include("%")<CR>
+nmap <leader>\g :Texec go\ run\ "%"<CR>
 
 " Config tagbar
 let g:tagbar_autofocus=1
@@ -184,9 +142,23 @@ nmap <leader>tc :TagbarClose<CR>
 nmap <leader>tt :TagbarToggle<CR>
 
 " Config vimtex
-let g:vimtex_view_general_viewer = 'evince'
+let g:vimtex_view_general_viewer = 'zathura'
 let g:vimtex_quickfix_mode=0
 let g:tex_flavor = 'latex'
+let g:vimtex_compiler_latexmk = {
+    \ 'build_dir' : '',
+    \ 'callback' : 1,
+    \ 'continuous' : 1,
+    \ 'executable' : 'latexmk',
+    \ 'hooks' : [],
+    \ 'options' : [
+    \   '-verbose',
+    \   '-file-line-error',
+    \   '-synctex=1',
+    \   '-interaction=nonstopmode',
+    \   '-shell-escape',
+    \ ],
+    \}
 
 " Config terminal in general 
 " Escape escapes terminal mode.
@@ -202,4 +174,69 @@ tnoremap <C-w>s <C-\><C-n><C-w>s
 tnoremap <C-w>v <C-\><C-n><C-w>v
 
 au VimEnter,BufRead,BufNewFile *.jl set filetype=julia
+let g:JuliaFormatter_use_sysimage=1
 let g:latex_to_unicode_tab=1
+
+" Configure treesitter
+lua << EOF
+require'nvim-treesitter.configs'.setup {
+  -- A list of parser names, or "all"
+  ensure_installed = { "cpp", "julia"},
+  -- Install parsers synchronously (only applied to `ensure_installed`)
+  sync_install = false,
+  highlight = {
+    -- `false` will disable the whole extension
+    enable = true,
+
+    -- NOTE: these are the names of the parsers and not the filetype. (for example if you want to
+    -- disable highlighting for the `tex` filetype, you need to include `latex` in this list as this is
+    -- the name of the parser)
+    -- list of language that will be disabled
+    disable = {},
+
+    -- Setting this to true will run `:h syntax` and tree-sitter at the same time.
+    -- Set this to `true` if you depend on 'syntax' being enabled (like for indentation).
+    -- Using this option may slow down your editor, and you may see some duplicate highlights.
+    -- Instead of true it can also be a list of languages
+    additional_vim_regex_highlighting = false,
+  },
+  -- textobjects = {
+  --   select = {
+  --     enable = true,
+
+  --     -- Automatically jump forward to textobj, similar to targets.vim
+  --     lookahead = true,
+
+  --     keymaps = {
+  --       -- You can use the capture groups defined in textobjects.scm
+  --       ["af"] = "@function.outer",
+  --       ["if"] = "@function.inner",
+  --       ["ac"] = "@class.outer",
+  --       ["ic"] = "@class.inner",
+  --       ["ac"] = "@block.outer",
+  --       ["ic"] = "@block.inner",
+  --     },
+  --   },
+  --   move = {
+  --     enable = true,
+  --     set_jumps = true, -- whether to set jumps in the jumplist
+  --     goto_next_start = {
+  --       ["]f"] = "@function.outer",
+  --       ["]]"] = "@scopename.inner",
+  --     },
+  --     goto_next_end = {
+  --       ["]F"] = "@function.outer",
+  --       ["]["] = "@scopename.inner",
+  --     },
+  --     goto_previous_start = {
+  --       ["[f"] = "@function.outer",
+  --       ["[["] = "@scopename.inner",
+  --     },
+  --     goto_previous_end = {
+  --       ["[F"] = "@function.outer",
+  --       ["[]"] = "@scopename.inner",
+  --     },
+  --   },
+  -- },
+}
+EOF

@@ -1,0 +1,264 @@
+#+title: Config
+
+Literal (private) configuration. Remember, you do not need to
+run ~doom sync~ after modifying this file!
+
+* Doom specific
+Doom exposes five (optional) variables for controlling fonts in Doom. Here
+are the three important ones:
++ =doom-font=
++ =doom-variable-pitch-font=
++ =doom-big-font= -- used for =doom-big-font-mode=; use this for presentations or streaming.
+
+They all accept either a font-spec, font string ("Input Mono-12"), or xlfd
+font string. You generally only need these two:
+~(setq doom-font (font-spec :family "monospace" :size 12 :weight 'semi-light)
+      doom-variable-pitch-font (font-spec :family "sans" :size 13))=
+
+#+begin_src emacs-lisp :tangle yes
+(setq doom-font (font-spec :family "monospace" :size 17))
+#+end_src
+
+There are two ways to load a theme. Both assume the theme is installed and
+available. You can either set `doom-theme' or manually load a theme with the
+`load-theme' function. This is the default:
+(setq doom-theme 'doom-one)
+#+begin_src emacs-lisp :tangle yes
+(setq doom-theme 'doom-gruvbox)
+#+end_src
+
+* General configuration
+Define some keybindings to
+- open notes on bibliographic files,
+- activate spell-checking, and
+- inserting unicode symbols.
+#+begin_src elisp :tangle yes
+(map! :map doom-leader-notes-map
+      "b" #'citar-open-notes)
+(map! :map doom-leader-toggle-map
+      "s" #'flyspell-mode)
+(map! :map evil-insert-state-map
+      "M-TAB" #'julia-latexsub-or-indent)
+(map! :map org-mode-map
+      "M-TAB" #'julia-latexsub-or-indent)
+(map! :mode org-mode :map doom-leader-toggle-map
+      "p" #'org-inline-pdf-mode)
+(map! :mode org-mode :map evil-org-mode-map
+      "<motion-state> ] h" #'org-next-visible-heading
+      "<motion-state> [ h" #'org-previous-visible-heading)
+(map! :map org-mode-map :localleader
+      "." (lambda () (interactive) (consult-org-heading nil 'tree)))
+#+end_src
+
+Enable
+- line numbers,
+- scroll margin, and
+- more fine grained undo.
+#+begin_src emacs-lisp :tangle yes
+(setq display-line-numbers-type t
+      evil-want-fine-undo t
+      scroll-margin 8)
+#+end_src
+
+Use 80MB undo-limit.
+#+begin_src emacs-lisp :tangle yes
+(setq undo-limit 80000000)
+#+end_src
+
+Split window below and right.
+#+begin_src emacs-lisp :tangle yes
+(setq evil-vsplit-window-right t
+      evil-split-window-below t)
+#+end_src
+
+After window split, prompt for buffer.
+#+begin_src emacs-lisp :tangle yes
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (consult-buffer))
+#+end_src
+
+
+** Magit
+/This seems to slow magit down by a lot.../
++Use [[https://github.com/dandavison/delta][rust-delta]] for magit diffs.+
+#+begin_src emacs-lisp :tangle yes
+;; (use-package magit-delta
+;;   :hook (magit-mode . magit-delta-mode))
+#+end_src
+
+** Autocomplete keybindings
+Never use =return= or =tab= to autocomplete, instead rely on =C-SPC=.
+#+begin_src emacs-lisp :tangle yes
+(map! :after company :map company-active-map
+      "TAB" nil
+      [tab] nil
+      "RET" nil
+      [return] nil
+      "C-SPC" #'company-complete-selection
+      ;; I forgot what this next line is supposed to do...
+      ;; (add-hook 'evil-normal-state-entry-hook #'company-abort)
+      )
+#+end_src
+
+* Special fixes
+When running =doom sync~, sometimes compiling packages depending on vterm
+can get stuck. This should fix it. See [[https://github.com/doomemacs/doomemacs/issues/5592#issuecomment-945919856][this github issue]] for more info.
+#+begin_src emacs-lisp :tangle yes
+(use-package! vterm
+  :config
+  (setq vterm-always-compile-module 1)
+)
+#+end_src
+
+
+* Latex
+Add some shortcuts to ~cdlatex~ so we can print $\circ$ and $\mathbb{R}$.
+Note that the numbers correspond to the ~int->char~ in the C sense.
+#+begin_src emacs-lisp :tangle yes
+(after! cdlatex
+  (add-to-list 'cdlatex-math-modify-alist
+    '(66 "\\mathbb" "\\textbb" t nil nil))
+  (add-to-list 'cdlatex-math-symbol-alist
+    '(99 ("\\circ")))
+)
+#+end_src
+
+When trying to compile inline tikz plots, the pdf backend uses some huge ~article~ class by default.
+We replace it with a standalone class.
+
+#+begin_src elisp :tangle yes
+;; (setq org-format-latex-header "\\documentclass[border=5pt]{standalone}
+;; [PACKAGES]
+;; [DEFAULT-PACKAGES]
+;; ")
+#+end_src
+
+
+* Language specific
+** Julia
+;; (add-hook! julia-repl-mode
+;;   (map! :leader
+;;         (:prefix-map ("m" . "mode")
+;;          (:desc "Eval buffer" "b" #'julia-repl-send-buffer
+;;           :desc "Eval region or line" "s" #'julia-repl-send-region-or-line
+;;           )))
+;;   )
+
+
+** Python
+For python, specify some arguments for the ~black~ formatter (line length).
+#+begin_src emacs-lisp :tangle yes
+(after! format
+  (set-formatter! 'black "black -q --line-length=119 -")
+  )
+#+end_src
+
+
+
+* Org mode configuration
+If you use `org' and don't want your org files in the default location below,
+change `org-directory'. It must be set before org loads!
+#+begin_src emacs-lisp :tangle yes
+(setq org-directory "~/org/")
+#+end_src
+
+Translate ~ob-julia~ blocks to ~minted~ environments in latex.
+#+begin_src emacs-lisp :tangle yes
+(add-hook! org-mode
+  ;; (add-to-list 'org-latex-packages-alist '("" "algorithm2e"))
+;;   (setq org-latex-custom-lang-environments
+;;       '(
+;;         (julia "\\begin{%f}
+;; \\begin{minted}[%o]{julia}
+;; %s\\end{minted}
+;; \\caption{%c}
+;; \\label{%l}\\end{%f}")
+;;         (julia-vterm "\\begin{%f}
+;; \\begin{minted}[%o]{julia}
+;; %s\\end{minted}
+;; \\caption{%c}
+;; \\label{%l}\\end{%f}")
+;;         (jupyter-julia "\\begin{%f}
+;; \\begin{minted}[%o]{julia}
+;; %s\\end{minted}
+;; \\caption{%c}
+;; \\label{%l}\\end{%f}")
+;;         ))
+  (add-to-list 'org-babel-load-languages '(julia . t))
+  (add-to-list 'org-babel-load-languages '(julia-vterm . t))
+  (org-babel-do-load-languages 'org-babel-load-languages org-babel-load-languages)
+  ;; (setq org-babel-execute:julia 'org-babel-execute:julia-vterm)
+)
+#+end_src
+
+** Export to latex
+Configure using ~tufte_algorithms_book~ template.
+#+begin_src emacs-lisp :tangle yes
+(after! ox-latex
+  :config
+  (add-to-list 'org-latex-classes
+               '("tufte_algorithms_book"
+                  "\\documentclass{tufte_algorithms_book}
+                   [NO-DEFAULT-PACKAGES]"
+                  ("\\chapter{%s}" . "\\chapter*{%s}")
+                  ("\\section{%s}" . "\\section*{%s}")
+                  ("\\subsection{%s}" . "\\subsection*{%s}")
+                  ("\\subsubsection{%s}" . "\\subsubsection*{%s}"))))
+#+end_src
+
+
+
+Make sure ~julia~ source blocks are run as ~julia-vterm~.
+#+begin_src emacs-lisp :tangle yes
+(setq lsp-julia-default-environment "~/.julia/environments/v1.6")
+(use-package! ob-julia-vterm
+  :config
+  (defalias 'org-babel-execute:julia 'org-babel-execute:julia-vterm)
+  (defalias 'org-babel-variable-assignments:julia 'org-babel-variable-assignments:julia-vterm)
+  )
+#+end_src
+
+
+
+** Citations and bibliography
+Configure bibliography.
+#+begin_src emacs-lisp :tangle yes
+(after! citar
+  (setq! citar-bibliography '("/home/romeo/Zotero/zotero-bibliography.bib" "/home/romeo/org/roam/fefe-on-crypto.bib"))
+  (setq! citar-notes-paths '("/home/romeo/org/roam/Notes"))
+  (setq! citar-at-point-function 'embark-act)
+  (defun citar-file-open (file)  ;; open pdf in external viewer
+    "Open FILE."
+    (if (member (file-name-extension file) '("html" "pdf"))
+        (citar-file-open-external (expand-file-name file))
+      (funcall citar-file-open-function (expand-file-name file))))
+  (citar-filenotify-setup '(LaTeX-mode-hook org-mode-hook)) ;; autosync .bib file
+  )
+#+end_src
+
+
+* Personal Information
+Some functionality uses this to identify you, e.g. GPG configuration,
+email clients, file templates and snippets.
+#+begin_src emacs-lisp :tangle yes
+(setq user-full-name "Romeo Valentin"
+      user-mail-address "valentin.romeo@gmail.com")
+#+end_src
+
+
+
+Here are some additional functions/macros that could help you configure Doom:
+
+- ~load!~ for loading external *.el files relative to this one
+- ~use-package!~ for configuring packages
+- ~after!~ for running code after a package has loaded
+- ~add-load-path!~ for adding directories to the ~load-path~, relative to this file. Emacs searches the ~load-path~ when you load packages with ~require~ or ~use-package~.
+- ~map!~ for binding new keys
+
+To get information about any of these functions/macros, move the cursor over
+the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
+This will open documentation for it, including demos of how they are used.
+
+You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
+they are implemented.

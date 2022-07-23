@@ -16,9 +16,15 @@
 ;; (package! helm-bibtex)
 ;; (package! ivy-bibtex)
 (package! org-attach-screenshot)
-(package! ob-julia-vterm)
-(package! org-modern)
 
+;; (package! julia-mode)
+(package! julia-vterm)
+(package! ob-julia-vterm)
+(package! engrave-faces)
+;; (package! ob-julia :recipe (:local-repo "lisp/ob-julia" :files ("*.el" "julia")))
+;; (package! magit-delta)
+
+;; (package! org-modern)
 ;; (package! openwith)
 
 ;; To install a package directly from a remote git repo, you must specify a

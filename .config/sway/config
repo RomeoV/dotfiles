@@ -14,7 +14,7 @@
 
 ### My own additions
 focus_follows_mouse no
-set $layout splitv
+set $workspace_layout stacking
 
 # Set up wob
 set $WOBSOCK $XDG_RUNTIME_DIR/wob.sock
@@ -30,6 +30,23 @@ exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DE
 # open new terminals with `footclient`
 exec foot --server
 
+# run some other programs
+# assign [app_id="firefox"] workspace 4
+assign [app_id="firefox"] workspace 1
+exec firefox -P default
+exec firefox -P default-release
+assign [app_id="thunderbird"] workspace 4
+exec thunderbird
+assign [class="Zotero"] workspace 9
+exec zotero
+assign [app_id="emacs"] workspace 2
+exec emacs
+
+# color in X11 windows
+# for_window [shell="xwayland"] title_format '[X11] %title'
+# for_window [shell="xwayland" ] title_format '<span color="#FF00BB">[X11]</span> <span color="#FFCC00">%title</span>'
+# for_window [shell="xdg"] title_format '<span color="#00BB00">[%app_id]</span> <span color="#FFCC00">%title</span>'
+
 
 ### Variables
 #
@@ -41,11 +58,12 @@ set $down j
 set $up k
 set $right l
 # Your preferred terminal emulator
-set $term footclient
-# Your preferred application launcher
+# set $term footclient
+set $term foot
 # Note: pass the final command to swaymsg so that the resulting window can be opened
 # on the original workspace that the command was run on.
-set $menu wofi --show run
+# set $menu wofi --show run
+set $menu fuzzel
 
 ### Output configuration
 #
@@ -85,6 +103,14 @@ input "1:1:AT_Translated_Set_2_keyboard" {
     xkb_layout "us,de"
     xkb_options "grp:alt_caps_toggle"
 }
+input "1133:45913:ERGO_K860_Keyboard" {
+    xkb_layout "us,de"
+    xkb_options "grp:alt_caps_toggle"
+}
+input "1452:556:Anker_TC320" {
+    xkb_layout "us,de"
+    xkb_options "grp:alt_caps_toggle"
+}
 #
 # You can get the names of your inputs by running: swaymsg -t get_inputs
 # Read `man 5 sway-input` for more information about this section.
@@ -92,8 +118,8 @@ input "1:1:AT_Translated_Set_2_keyboard" {
 ### Key bindings
 #
 # Hardware keys
-bindsym XF86AudioRaiseVolume exec pamixer -ui 5 && pamixer --get-volume > $WOBSOCK
-bindsym XF86AudioLowerVolume exec pamixer -ud 5 && pamixer --get-volume > $WOBSOCK
+bindsym XF86AudioRaiseVolume exec pamixer --unmute --allow-boost --increase 5 && pamixer --get-volume > $WOBSOCK
+bindsym XF86AudioLowerVolume exec pamixer --unmute --allow-boost --decrease 5 && pamixer --get-volume > $WOBSOCK
 bindsym XF86AudioMute exec pamixer -t > $WOBSOCK
 bindsym XF86MonBrightnessUp exec brightnessctl set +5% && echo $(($(brightnessctl g) * 100 / $(brightnessctl m))) > $WOBSOCK
 bindsym XF86MonBrightnessDown exec brightnessctl set 5%- && echo $(($(brightnessctl g) * 100 / $(brightnessctl m))) > $WOBSOCK
@@ -202,6 +228,7 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%- && echo $(($(brightness
 
     # Move focus to the parent container
     bindsym $mod+a focus parent
+    bindsym $mod+Shift+a focus child
 #
 # Scratchpad:
 #
@@ -228,10 +255,10 @@ mode "resize" {
     bindsym $right resize grow width 30px
 
     # Ditto, with arrow keys
-    bindsym Left resize shrink width 30px
-    bindsym Down resize grow height 30px
-    bindsym Up resize shrink height 30px
-    bindsym Right resize grow width 30px
+    bindsym Left move left 10px
+    bindsym Down move down 10px
+    bindsym Up move up 10px
+    bindsym Right move right 10px
 
     # Return to default mode
     bindsym Return mode "default"
