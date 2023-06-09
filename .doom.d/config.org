@@ -532,18 +532,6 @@ Only now to get =a_{\rm foo}= we have to also press ~C-c~ twice, but so be it.
 ;; also consider setting variable Tex-electric-sub-and-superscript to nil
 #+end_src
 
-* Calendar sync (unused)
-#+begin_src emacs-lisp :tangle yes
-(use-package! org-caldav
-  :ensure t
-  :config
-  (setq org-caldav-url "https://caldav.fastmail.com/dav/calendars/user/romeo@romeov.me")
-  (setq org-caldav-calendars
-        '((:calendar-id "8EA9017E-0626-11ED-B063-DC7178119CC6"
-           :inbox "~/org/calendar.romeov.me.org")))
-  (setq org-icalendar-timezone "America/Los_Angeles"))
-#+end_src
-
 * Tree-sitter
 ** Evil textobs
 #+begin_src emacs-lisp :tangle yes
@@ -663,8 +651,6 @@ If nil, it is disabled in all modes")
 (use-package org-ai
   :ensure
   :commands (org-ai-mode)
-  :custom
-  (org-ai-openai-api-token "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")
   :init
   (add-hook 'org-mode-hook #'org-ai-mode)
   :config
