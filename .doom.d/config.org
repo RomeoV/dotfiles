@@ -3,7 +3,36 @@
 Literal (private) configuration. Remember, you do not need to
 run ~doom sync~ after modifying this file!
 
-* Doom specific
+* Personal Information
+Some functionality uses this to identify you, e.g. GPG configuration,
+email clients, file templates and snippets.
+#+begin_src emacs-lisp :tangle yes
+(setq user-full-name "Romeo Valentin"
+      user-mail-address "romeo@romeov.me")
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! org)
+#+end_src
+
+
+
+Here are some additional functions/macros that could help you configure Doom:
+
+- ~load!~ for loading external *.el files relative to this one
+- ~use-package!~ for configuring packages
+- ~after!~ for running code after a package has loaded
+- ~add-load-path!~ for adding directories to the ~load-path~, relative to this file. Emacs searches the ~load-path~ when you load packages with ~require~ or ~use-package~.
+- ~map!~ for binding new keys
+
+To get information about any of these functions/macros, move the cursor over
+the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
+This will open documentation for it, including demos of how they are used.
+
+You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
+they are implemented.
+
+* Doom themeing
 Doom exposes five (optional) variables for controlling fonts in Doom. Here
 are the three important ones:
 + =doom-font=
@@ -16,7 +45,7 @@ font string. You generally only need these two:
       doom-variable-pitch-font (font-spec :family "sans" :size 13))=
 
 #+begin_src emacs-lisp :tangle yes
-(setq doom-font (font-spec :family "monospace" :size 17))
+(setq doom-font (font-spec :family "Roboto Mono" :size 15))
 #+end_src
 
 There are two ways to load a theme. Both assume the theme is installed and
@@ -28,15 +57,19 @@ available. You can either set `doom-theme' or manually load a theme with the
 #+end_src
 
 * General configuration
+** General keymaps
 Define some keybindings to
 - open notes on bibliographic files,
 - activate spell-checking, and
 - inserting unicode symbols.
 #+begin_src elisp :tangle yes
-(map! :map doom-leader-notes-map
-      "b" #'citar-open-notes)
-(map! :map doom-leader-toggle-map
-      "s" #'flyspell-mode)
+;; This seems to have been added by default
+;; (map! :map doom-leader-notes-map
+;;       "b" #'citar-open-notes)
+(map! :map doom-leader-open-map
+      "_" #'ranger)
+;; (map! :map doom-leader-toggle-map
+;;       "s" #'flyspell-mode)
 (map! :map evil-insert-state-map
       "M-TAB" #'julia-latexsub-or-indent)
 (map! :map org-mode-map
@@ -44,12 +77,24 @@ Define some keybindings to
 (map! :mode org-mode :map doom-leader-toggle-map
       "p" #'org-inline-pdf-mode)
 (map! :mode org-mode :map evil-org-mode-map
-      "<motion-state> ] h" #'org-next-visible-heading
-      "<motion-state> [ h" #'org-previous-visible-heading)
+      "<motion-state> ] h" #'org-forward-heading-same-level
+      "<motion-state> [ h" #'org-backward-heading-same-level
+      "<motion-state> M-]" #'org-forward-heading-same-level
+      "<motion-state> M-[" #'org-backward-heading-same-level
+      "<motion-state> [ H" #'outline-up-heading)
 (map! :map org-mode-map :localleader
       "." (lambda () (interactive) (consult-org-heading nil 'tree)))
+(map! :map minibuffer-mode-map
+      "C-c C-a" #'embark-act)
+(map! :map doom-leader-code-map
+      "l" #'eval/line-or-region)
+(map! :map doom-leader-map
+      "TAB {" #'+workspace/swap-left
+      "TAB }" #'+workspace/swap-right)
 #+end_src
 
+
+** Other doom options
 Enable
 - line numbers,
 - scroll margin, and
@@ -63,6 +108,11 @@ Enable
 Use 80MB undo-limit.
 #+begin_src emacs-lisp :tangle yes
 (setq undo-limit 80000000)
+#+end_src
+
+With a large scroll margin, eglot popups often move my code, which is annoying...
+#+begin_src emacs-lisp :tangle yes
+(setq scroll-margin 4)
 #+end_src
 
 Split window below and right.
@@ -79,14 +129,6 @@ After window split, prompt for buffer.
 #+end_src
 
 
-** Magit
-/This seems to slow magit down by a lot.../
-+Use [[https://github.com/dandavison/delta][rust-delta]] for magit diffs.+
-#+begin_src emacs-lisp :tangle yes
-;; (use-package magit-delta
-;;   :hook (magit-mode . magit-delta-mode))
-#+end_src
-
 ** Autocomplete keybindings
 Never use =return= or =tab= to autocomplete, instead rely on =C-SPC=.
 #+begin_src emacs-lisp :tangle yes
@@ -100,17 +142,193 @@ Never use =return= or =tab= to autocomplete, instead rely on =C-SPC=.
       ;; (add-hook 'evil-normal-state-entry-hook #'company-abort)
       )
 #+end_src
+** Tramp
+Try to remedy weird slowdown when using projectile and tramp together.
+See https://www.reddit.com/r/emacs/comments/320cvb/projectile_slows_tramp_mode_to_a_crawl_is_there_a/
+#+begin_src emacs-lisp :tangle yes
+;; (defadvice projectile-project-root (around ignore-remote first activate)
+;;     (unless (file-remote-p default-directory) ad-do-it))
+#+end_src
 
-* Special fixes
+Also, for some servers we already have a "Control" setup installed in the ssh config (e.g. for sherlock).
+For those, we want to remove any control options from the ssh connection, which are currently inserted as "%c" into the tramp method,
+which in turn evaluates =tramp-ssh-controlmaster-options=.
+We define a new ssh connection type here that doesn't override the controlmaster options.
+#+begin_src emacs-lisp :tangle yes
+(after! tramp
+  (add-to-list 'tramp-methods '("sshnocm"
+                                (tramp-login-program "ssh")
+                                (tramp-login-args
+                                 (("-l" "%u")
+                                  ("-p" "%p")
+                                  ("-e" "none")
+                                  ("%h")))
+                                (tramp-async-args
+                                 (("-q")))
+                                (tramp-direct-async t)
+                                (tramp-remote-shell "/bin/sh")
+                                (tramp-remote-shell-login
+                                 ("-l"))
+                                (tramp-remote-shell-args
+                                 ("-c")))))
+#+end_src
+
+** Magit
+/This seems to slow magit down by a lot.../
++Use [[https://github.com/dandavison/delta][rust-delta]] for magit diffs.+
+#+begin_src emacs-lisp :tangle yes
+;; (use-package magit-delta
+;;   :hook (magit-mode . magit-delta-mode))
+#+end_src
+
+* Eglot
+Use longer connection timeout. Especially imporant in Julia projects.
+#+begin_src emacs-lisp :tangle yes
+(after! eglot
+  :config
+  (setq eglot-connect-timeout 600))
+#+end_src
+* vterm
+** Always compile module
 When running =doom sync~, sometimes compiling packages depending on vterm
 can get stuck. This should fix it. See [[https://github.com/doomemacs/doomemacs/issues/5592#issuecomment-945919856][this github issue]] for more info.
+
 #+begin_src emacs-lisp :tangle yes
 (use-package! vterm
   :config
-  (setq vterm-always-compile-module 1)
+  (setq vterm-always-compile-module t)
+  ;; Remove C-w from auto-insert
+  ;; (push '"C-w" vterm-keymap-exceptions)
+  ;; (map! :map vterm-mode-map "<insert-state> C-w" nil)  ;; This makes it so we can window in vterm
 )
 #+end_src
 
+** vterm auto insert
+I want to go back to the "repl" after pressing insert.
+This snippet is from [[https://github.com/akermu/emacs-libvterm/issues/313#issuecomment-706509709][here]].
+
+#+begin_src emacs-lisp :tangle yes
+(defun evil-collection-vterm-insert (count &optional vcount skip-empty-lines)
+  (interactive
+   (list (prefix-numeric-value current-prefix-arg)
+         (and (evil-visual-state-p)
+              (memq (evil-visual-type) '(line block))
+              (save-excursion
+                (let ((m (mark)))
+                  ;; go to upper-left corner temporarily so
+                  ;; `count-lines' yields accurate results
+                  (evil-visual-rotate 'upper-left)
+                  (prog1 (count-lines evil-visual-beginning evil-visual-end)
+                    (set-mark m)))))
+         (evil-visual-state-p)))
+  (evil-insert count vcount skip-empty-lines)
+  (let ((p (point)))
+    (vterm-reset-cursor-point)
+    (while (< p (point))
+      (vterm-send-left)
+      (forward-char -1))
+    (while (> p (point))
+      (vterm-send-right)
+      (forward-char 1))))
+(evil-define-key 'normal 'vterm-mode-map
+  "i" 'evil-collection-vterm-insert
+  "a" 'evil-collection-vterm-append)
+;; (evil-define-key 'insert 'vterm-mode-map
+;;   (kbd "C-w") nil)
+#+end_src
+
+** Isend
+Here we basically replace the functionality of Neoterm's TREPLSend.
+We need to associate a terminal to every buffer (slightly annoying but no major problem) with ~isend-associate~ and then can either send lines/regions or use the REPL "include" functionality.
+We also bind it to the same leader as it is in my nvim config :)
+#+begin_src emacs-lisp :tangle yes
+(defun my/julia-include-file ()
+  "Include current file"
+  (interactive)
+  (require 'vterm 'isend)
+  (let* ((fname (tramp-file-local-name buffer-file-name))
+         (incl-string (concat "include("
+                              (prin1-to-string fname) ;; surround with quotes->"<text>"
+                              ")")))
+    (isend--send-dest incl-string isend--command-buffer)))
+
+(map! :map julia-mode-map :leader
+      (:prefix-map ("\\" . "isend")
+                   "l" #'isend-send
+                   "f" #'my/julia-include-file
+                   "a" #'isend-associate))
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(map! :map vterm-mode-map :localleader
+      "C-c" #'vterm-send-C-c
+      ;; "C-w" #'vterm-send-C-w
+      "C-a" #'vterm-send-C-a
+      "ESC" #'vterm-send-escape
+      )
+(map! :map vterm-mode-map
+      "<insert-state> C-c" #'vterm--self-insert
+      "<insert-state> C-w" nil
+      "C-q" #'vterm-send-next-key)
+(setq vterm-always-compile-module t)
+#+end_src
+
+We actually use the doom emacs direnv package now.
+#+begin_src elisp :tangle yes
+;; (use-package direnv
+;;   :config
+;;   (direnv-mode))
+#+end_src
+
+Add auto-save hook when exiting insert mode.
+This doesn't seem to work though...
+#+begin_src emacs-lisp :tangle yes
+;; (add-hook! 'evil-insert-state-exit-hook :append (lambda() (call-interactively #'evil-write)))
+#+end_src
+
+** Python include file
+#+begin_src emacs-lisp :tangle yes :eval never :tangle no
+(defun my/ipython-include-file ()
+  "Insert text of current line in vterm and execute."
+  (interactive)
+  (require 'vterm)
+  (let ((buf (current-buffer))
+        (command (concat "%run " (buffer-file-name)))
+        )
+    (vterm)
+    (vterm--goto-line -1)
+    ;; (message command)
+    (vterm-send-string command)
+    (vterm-send-return)
+    (switch-to-buffer-other-window buf)
+    ))
+#+end_src
+** Python include file 2.0 (idk why I have this twice?)
+Create "send file to vterm" with =%run=.
+#+begin_src emacs-lisp :tangle yes
+(defun ipython-run-file ()
+  (interactive)
+  (let ((project-root (projectile-acquire-root)))
+    (if (projectile-project-p)
+        (let ((file (projectile-completing-read "%run file: "
+                                                (projectile-dir-files project-root))))
+          (isend--send-dest
+           (concat"%run " file)
+           (get-buffer isend--command-buffer))))))
+
+(map! :map python-mode-map :localleader
+      "f" #'ipython-run-file
+      "s" #'isend-send
+      "a" #'isend-associate)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(map! :map vterm-mode-map
+      "C-c C-c" #'vterm-send-C-c)
+
+(after! isend
+  (setq isend-strip-empty-lines t))
+#+end_src
 
 * Latex
 Add some shortcuts to ~cdlatex~ so we can print $\circ$ and $\mathbb{R}$.
@@ -121,6 +339,10 @@ Note that the numbers correspond to the ~int->char~ in the C sense.
     '(66 "\\mathbb" "\\textbb" t nil nil))
   (add-to-list 'cdlatex-math-symbol-alist
     '(99 ("\\circ")))
+  (add-to-list 'cdlatex-math-symbol-alist
+    '(84 ("\\intercal")))
+  (add-to-list 'cdlatex-math-modify-alist
+    '(84 nil "\\intercal" nil nil nil))
 )
 #+end_src
 
@@ -134,9 +356,22 @@ We replace it with a standalone class.
 ;; ")
 #+end_src
 
-
 * Language specific
 ** Julia
+Don't start eglot by default.
+#+begin_src emacs-lisp :tangle yes
+(after! julia-mode
+  (setq julia-mode-local-vars-hook (remove-hook 'lsp! 'julia-mode-local-vars-hook)))
+#+end_src
+
+Use own eglot-jl
+#+begin_src emacs-lisp :tangle yes
+;; (use-package! eglot-jl
+;;   :load-path "/home/romeo/Documents/github/eglot-jl"
+;;   )
+
+#+end_src
+
 ;; (add-hook! julia-repl-mode
 ;;   (map! :leader
 ;;         (:prefix-map ("m" . "mode")
@@ -144,6 +379,12 @@ We replace it with a standalone class.
 ;;           :desc "Eval region or line" "s" #'julia-repl-send-region-or-line
 ;;           )))
 ;;   )
+
+Try to modify popup rule to make larger repl
+#+begin_src emacs-lisp :tangle yes
+(after! julia
+  (set-popup-rule! "^\\julia" :height 0.4 :size 0.5))
+#+end_src
 
 
 ** Python
@@ -154,7 +395,17 @@ For python, specify some arguments for the ~black~ formatter (line length).
   )
 #+end_src
 
+*** Poetry
+#+begin_src emacs-lisp :tangle yes
+(after! poetry
+  :config
+  (set-default 'poetry-tracking-mode -1)
+  (remove-hook! 'python-mode-hook 'poetry-tracking-mode)
+  (setq poetry-tracking-strategy 'projectile)
+  (remove-hook! 'projectile-before-switch-project-hook 'poetry-track-virtualenv))
+#+end_src
 
+#+RESULTS:
 
 * Org mode configuration
 If you use `org' and don't want your org files in the default location below,
@@ -163,6 +414,20 @@ change `org-directory'. It must be set before org loads!
 (setq org-directory "~/org/")
 #+end_src
 
+** Bugs
+I get a ~org-element-with-disabled-cache~ error, so we disable the element cache for now (whatever that means).
+#+begin_src emacs-lisp :tangle yes
+(setq org-element-use-cache nil)
+
+#+end_src
+
+** org appear
+#+begin_src emacs-lisp :tangle yes
+(add-hook! org-mode
+    'org-appear-mode)
+#+end_src
+
+** babel -> minted
 Translate ~ob-julia~ blocks to ~minted~ environments in latex.
 #+begin_src emacs-lisp :tangle yes
 (add-hook! org-mode
@@ -199,26 +464,42 @@ Configure using ~tufte_algorithms_book~ template.
   :config
   (add-to-list 'org-latex-classes
                '("tufte_algorithms_book"
-                  "\\documentclass{tufte_algorithms_book}
+                 "\\documentclass{tufte_algorithms_book}
                    [NO-DEFAULT-PACKAGES]"
-                  ("\\chapter{%s}" . "\\chapter*{%s}")
-                  ("\\section{%s}" . "\\section*{%s}")
-                  ("\\subsection{%s}" . "\\subsection*{%s}")
-                  ("\\subsubsection{%s}" . "\\subsubsection*{%s}"))))
+                 ("\\chapter{%s}" . "\\chapter*{%s}")
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")))
+  (add-to-list 'org-latex-classes
+               '("review" "\\documentclass[11pt]{article}"
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
 #+end_src
 
 
 
 Make sure ~julia~ source blocks are run as ~julia-vterm~.
 #+begin_src emacs-lisp :tangle yes
-(setq lsp-julia-default-environment "~/.julia/environments/v1.6")
-(use-package! ob-julia-vterm
-  :config
-  (defalias 'org-babel-execute:julia 'org-babel-execute:julia-vterm)
-  (defalias 'org-babel-variable-assignments:julia 'org-babel-variable-assignments:julia-vterm)
-  )
+(setq lsp-julia-default-environment "~/.julia/environments/v1.9")
+(setq eglot-jl-language-server-project "~/.julia/environments/v1.9")
+;; (use-package! ob-julia-vterm
+;;   :config
+;;   (defalias 'org-babel-execute:julia 'org-babel-execute:julia-vterm)
+;;   (defalias 'org-babel-variable-assignments:julia 'org-babel-variable-assignments:julia-vterm)
+;;   )
 #+end_src
 
+
+** Latex subfigure :export nil
+/Note, this doesn't work anymore atm.../
+Custom script to parse ~subcaption~ figures. See https://github.com/linktohack/ox-latex-subfigure.
+
+#+begin_src emacs-lisp :tangle no
+(use-package! ox-latex-subfigure
+  :init
+  (setq org-latex-prefer-user-labels nil)
+  :config (require 'ox-latex-subfigure))
+#+end_src
 
 
 ** Citations and bibliography
@@ -233,32 +514,161 @@ Configure bibliography.
     (if (member (file-name-extension file) '("html" "pdf"))
         (citar-file-open-external (expand-file-name file))
       (funcall citar-file-open-function (expand-file-name file))))
-  (citar-filenotify-setup '(LaTeX-mode-hook org-mode-hook)) ;; autosync .bib file
+  ;; (citar-filenotify-setup '(LaTeX-mode-hook org-mode-hook)) ;; autosync .bib file
   )
 #+end_src
 
 
-* Personal Information
-Some functionality uses this to identify you, e.g. GPG configuration,
-email clients, file templates and snippets.
+
+** cdlatex
+I'm annoyed that cdlatex auto-inserts brackets ={}=, so I'm mapping it to ~C-c ^~ and ~C-c _~ instead.
+Only now to get =a_{\rm foo}= we have to also press ~C-c~ twice, but so be it.
 #+begin_src emacs-lisp :tangle yes
-(setq user-full-name "Romeo Valentin"
-      user-mail-address "valentin.romeo@gmail.com")
+(map! :map org-cdlatex-mode-map
+      "^" nil
+      "_" nil
+      "C-c ^" #'org-cdlatex-underscore-caret
+      "C-c _" #'org-cdlatex-underscore-caret)
+;; also consider setting variable Tex-electric-sub-and-superscript to nil
 #+end_src
 
+* Calendar sync (unused)
+#+begin_src emacs-lisp :tangle yes
+(use-package! org-caldav
+  :ensure t
+  :config
+  (setq org-caldav-url "https://caldav.fastmail.com/dav/calendars/user/romeo@romeov.me")
+  (setq org-caldav-calendars
+        '((:calendar-id "8EA9017E-0626-11ED-B063-DC7178119CC6"
+           :inbox "~/org/calendar.romeov.me.org")))
+  (setq org-icalendar-timezone "America/Los_Angeles"))
+#+end_src
+
+* Tree-sitter
+** Evil textobs
+#+begin_src emacs-lisp :tangle yes
+(use-package! evil-textobj-tree-sitter
+  :config
+  ;; bind `function.outer`(entire function block) to `f` for use in things like `vaf`, `yaf`
+  (define-key evil-outer-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
+  ;; bind `function.inner`(function block without name and args) to `f` for use in things like `vif`, `yif`
+  (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner")))
+#+end_src
+** Language sources
+#+begin_src emacs-lisp :tangle yes
+(setq treesit-language-source-alist
+   '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+     (cmake "https://github.com/uyha/tree-sitter-cmake")
+     (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+     (go "https://github.com/tree-sitter/tree-sitter-go")
+     (html "https://github.com/tree-sitter/tree-sitter-html")
+     (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+     (julia "https://github.com/tree-sitter/tree-sitter-julia")
+     (json "https://github.com/tree-sitter/tree-sitter-json")
+     (make "https://github.com/alemuller/tree-sitter-make")
+     (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+     (org "https://github.com/milisims/tree-sitter-org")
+     (python "https://github.com/tree-sitter/tree-sitter-python")
+     (toml "https://github.com/tree-sitter/tree-sitter-toml")
+     (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
+#+end_src
+
+** Old
+This is from the official doom config, but tries to use the inbuilt tree-sitter.
+See [[https://github.com/doomemacs/doomemacs/blob/master/modules/tools/tree-sitter/config.el][the config on github]].
+Note that this is currently ~:noeval~
+# #+begin_src emacs-lisp :tangle yes :noeval
+;;; tools/tree-sitter/config.el -*- lexical-binding: t; -*-
+(defvar +tree-sitter-hl-enabled-modes '(not web-mode typescript-tsx-mode)
+  "A list of major modes which should be highlighted by tree-sitter.
+
+If this list begins with `not', then it negates the list.
+If it is t, it is enabled in all modes.
+If nil, it is disabled in all modes")
+
+;;
+;;; Packages
+
+;; This is actually built-in now!
+;; (use-package! tree-sitter
+;;   :defer t
+;;   :config
+;;   (require 'tree-sitter-langs)
+;;   ;; This makes every node a link to a section of code
+;;   (setq tree-sitter-debug-jump-buttons t
+;;         ;; and this highlights the entire sub tree in your code
+;;         tree-sitter-debug-highlight-jump-region t))
 
 
-Here are some additional functions/macros that could help you configure Doom:
+(use-package! evil-textobj-tree-sitter
+  :when (modulep! :editor evil +everywhere)
+  :defer t
+  :init (after! tree-sitter (require 'evil-textobj-tree-sitter))
+  :config
+  (defvar +tree-sitter-inner-text-objects-map (make-sparse-keymap))
+  (defvar +tree-sitter-outer-text-objects-map (make-sparse-keymap))
+  (defvar +tree-sitter-goto-previous-map (make-sparse-keymap))
+  (defvar +tree-sitter-goto-next-map (make-sparse-keymap))
 
-- ~load!~ for loading external *.el files relative to this one
-- ~use-package!~ for configuring packages
-- ~after!~ for running code after a package has loaded
-- ~add-load-path!~ for adding directories to the ~load-path~, relative to this file. Emacs searches the ~load-path~ when you load packages with ~require~ or ~use-package~.
-- ~map!~ for binding new keys
+  (evil-define-key '(visual operator) 'tree-sitter-mode
+    "i" +tree-sitter-inner-text-objects-map
+    "a" +tree-sitter-outer-text-objects-map)
+  (evil-define-key 'normal 'tree-sitter-mode
+    "[g" +tree-sitter-goto-previous-map
+    "]g" +tree-sitter-goto-next-map)
 
-To get information about any of these functions/macros, move the cursor over
-the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
-This will open documentation for it, including demos of how they are used.
+  (map! (:map +tree-sitter-inner-text-objects-map
+         "A" (+tree-sitter-get-textobj '("parameter.inner" "call.inner"))
+         "f" (+tree-sitter-get-textobj "function.inner")
+         "F" (+tree-sitter-get-textobj "call.inner")
+         "C" (+tree-sitter-get-textobj "class.inner")
+         "v" (+tree-sitter-get-textobj "conditional.inner")
+         "l" (+tree-sitter-get-textobj "loop.inner"))
+        (:map +tree-sitter-outer-text-objects-map
+         "A" (+tree-sitter-get-textobj '("parameter.outer" "call.outer"))
+         "f" (+tree-sitter-get-textobj "function.outer")
+         "F" (+tree-sitter-get-textobj "call.outer")
+         "C" (+tree-sitter-get-textobj "class.outer")
+         "c" (+tree-sitter-get-textobj "comment.outer")
+         "v" (+tree-sitter-get-textobj "conditional.outer")
+         "l" (+tree-sitter-get-textobj "loop.outer"))
 
-You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
-they are implemented.
+        (:map +tree-sitter-goto-previous-map
+         "a" (+tree-sitter-goto-textobj "parameter.outer" t)
+         "f" (+tree-sitter-goto-textobj "function.outer" t)
+         "F" (+tree-sitter-goto-textobj "call.outer" t)
+         "C" (+tree-sitter-goto-textobj "class.outer" t)
+         "c" (+tree-sitter-goto-textobj "comment.outer" t)
+         "v" (+tree-sitter-goto-textobj "conditional.outer" t)
+         "l" (+tree-sitter-goto-textobj "loop.outer" t))
+        (:map +tree-sitter-goto-next-map
+         "a" (+tree-sitter-goto-textobj "parameter.outer")
+         "f" (+tree-sitter-goto-textobj "function.outer")
+         "F" (+tree-sitter-goto-textobj "call.outer")
+         "C" (+tree-sitter-goto-textobj "class.outer")
+         "c" (+tree-sitter-goto-textobj "comment.outer")
+         "v" (+tree-sitter-goto-textobj "conditional.outer")
+         "l" (+tree-sitter-goto-textobj "loop.outer")))
+
+  (after! which-key
+    (setq which-key-allow-multiple-replacements t)
+    (pushnew!
+     which-key-replacement-alist
+     '(("" . "\\`+?evil-textobj-tree-sitter-function--\\(.*\\)\\(?:.inner\\|.outer\\)") . (nil . "\\1")))))
+# #+end_src
+
+* org-ai
+
+#+begin_src elisp :tangle yes
+(use-package org-ai
+  :ensure
+  :commands (org-ai-mode)
+  :custom
+  (org-ai-openai-api-token "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")
+  :init
+  (add-hook 'org-mode-hook #'org-ai-mode)
+  :config
+  ;; if you are using yasnippet and want `ai` snippets
+  (org-ai-install-yasnippets)
+  )
+#+end_src

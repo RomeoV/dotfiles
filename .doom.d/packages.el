@@ -5,6 +5,9 @@
 ;; on the command line, then restart Emacs for the changes to take effect -- or
 ;; use 'M-x doom/reload'.
 
+;; See https://libreddit.romeov.me/r/emacs/comments/1118o25/doom_emacs_error_running_hook_globalgitcommitmode/
+;; (package! transient :pin "c2bdf7e12c530eb85476d3aef317eb2941ab9440")
+;; (package! with-editor :pin "bbc60f68ac190f02da8a100b6fb67cf1c27c53ab")
 
 ;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
 ;(package! some-package)
@@ -18,11 +21,51 @@
 (package! org-attach-screenshot)
 
 ;; (package! julia-mode)
-(package! julia-vterm)
-(package! ob-julia-vterm)
+;; (package! julia-vterm)
+;; (package! ob-julia-vterm)
+;; (package! tree-sitter-langs)
+;; (package! tree-sitter-julia
+;;   :recipe (:host github :repo "tree-sitter/tree-sitter-julia"))
+(package! julia-ts-mode)
+(package! evil-textobj-tree-sitter)
+;; (package! combombulate
+;;   :recipe (:host github :repo "mickeynp/combobulate"))
+;; (package! eglot-jl :ignore t)
+;;
+
+;; (package! nano-emacs
+;;   :recipe (:host github :repo "rougier/nano-emacs"))
+;;
+; (package! magit :pin "f44f6c14500476d918e9c01de8449edb20af4113")
+; (package! forge :pin "ecedeaf641f3c06ac72db57837d15bdb02ac198b")
+
+
 (package! engrave-faces)
 ;; (package! ob-julia :recipe (:local-repo "lisp/ob-julia" :files ("*.el" "julia")))
-;; (package! magit-delta)
+(package! magit-delta)
+
+(package! org-caldav)
+
+; (package! nickel-mode)
+(package! org-appear)
+
+;; There's some new bug related to org-loaddefs...
+(package! ox-latex-subfigure
+ :recipe (:host github :repo "RomeoV/ox-latex-subfigure"))
+;; (package!  powerthesaurus
+;;   :recipe (:host github :repo "SavchenkoValeriy/emacs-powerthesaurus"))
+;; (package!  define-word
+;;   :recipe (:host github :repo "abo-abo/define-word"))
+
+;; (package! straight :pin "3eca39d")  ;; see https://github.com/doomemacs/doomemacs/issues/6960#issuecomment-1327514660
+
+;; (package! direnv)
+(package! isend-mode)                   ;; <- this is the real game changer :)
+; (package! org-transclusion)
+
+; (package! crdt)
+(package! org-ai)
+
 
 ;; (package! org-modern)
 ;; (package! openwith)
