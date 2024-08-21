@@ -12,7 +12,10 @@ email clients, file templates and snippets.
 #+end_src
 
 #+begin_src emacs-lisp :tangle yes
-(use-package! org)
+(use-package! org
+  :config
+  (add-to-list '+org-babel-mode-alist '(julia . julia-snail))
+  (setq org-image-actual-width 300))
 #+end_src
 
 
@@ -45,7 +48,9 @@ font string. You generally only need these two:
       doom-variable-pitch-font (font-spec :family "sans" :size 13))=
 
 #+begin_src emacs-lisp :tangle yes
-(setq doom-font (font-spec :family "Roboto Mono" :size 15))
+;; (setq doom-font (font-spec :family "Roboto Mono" :size 15))
+;; (setq doom-font (font-spec :family "Julia Mono" :size 15))
+(setq doom-font (font-spec :family "IosevkaTerm Nerd Font Mono" :size 13))
 #+end_src
 
 There are two ways to load a theme. Both assume the theme is installed and
@@ -53,7 +58,10 @@ available. You can either set `doom-theme' or manually load a theme with the
 `load-theme' function. This is the default:
 (setq doom-theme 'doom-one)
 #+begin_src emacs-lisp :tangle yes
-(setq doom-theme 'doom-gruvbox)
+;; (setq doom-theme 'doom-monokai-ristretto)
+;; (setq doom-theme 'doom-gruvbox-light)
+;; (setq doom-theme 'modus-operandi)
+(setq doom-theme 'modus-vivendi)
 #+end_src
 
 * General configuration
@@ -70,10 +78,12 @@ Define some keybindings to
       "_" #'ranger)
 ;; (map! :map doom-leader-toggle-map
 ;;       "s" #'flyspell-mode)
-(map! :map evil-insert-state-map
-      "M-TAB" #'julia-latexsub-or-indent)
-(map! :map org-mode-map
-      "M-TAB" #'julia-latexsub-or-indent)
+;; (map! :map evil-insert-state-map
+;;       "M-TAB" #'julia-latexsub-or-indent)
+(map! :map evil-normal-state-map
+      "g /" #'evil-avy-goto-char-timer)
+;; (map! :map org-mode-map
+;;       "M-TAB" #'julia-latexsub-or-indent)
 (map! :mode org-mode :map doom-leader-toggle-map
       "p" #'org-inline-pdf-mode)
 (map! :mode org-mode :map evil-org-mode-map
@@ -84,6 +94,9 @@ Define some keybindings to
       "<motion-state> [ H" #'outline-up-heading)
 (map! :map org-mode-map :localleader
       "." (lambda () (interactive) (consult-org-heading nil 'tree)))
+(map! :map org-mode-map :localleader
+      (:prefix-map ("L" . "org-latex")
+                   "p" #'org-latex-preview))
 (map! :map minibuffer-mode-map
       "C-c C-a" #'embark-act)
 (map! :map doom-leader-code-map
@@ -91,8 +104,61 @@ Define some keybindings to
 (map! :map doom-leader-map
       "TAB {" #'+workspace/swap-left
       "TAB }" #'+workspace/swap-right)
+
+(map! :map doom-leader-notes-map
+      "B" #'citar-open)
+(map! :map dired-mode-map
+      "<normal-state> O" #'image-dired-dired-display-external
+      ;; "<normal-state> RET" #'dired-find-alternate-file)  ;; close dired buffer on "RET" so it's not in the 'last buffer'
+      "<normal-state> RET" #'dired-find-file)  ;; close dired buffer on "RET" so it's not in the 'last buffer'
+(map! :map doom-leader-notes-map
+      "A" #'org-agenda-list
+      "t" (lambda () (interactive) (find-file "/home/romeo/org/todo_notes/todo.org")))
+(setq image-dired-external-viewer "imv")
 #+end_src
 
+
+** Magit
+*** Magit revision mode maps
+#+begin_src emacs-lisp :tangle yes
+;; (map! :map magit-revision-mode
+;;       "<normal-state> O" #'image-dired-dired-display-external)
+(defun romeov/julia-registrator-register-current-commit ()
+  "Comment on upstream commit to activate the Julia Registrator."
+  (interactive)
+  (require 'magit)
+  (let ((rev magit-buffer-revision-hash))
+    ;; First try formatting the resource.
+    (forge--format-resource
+    ;; This must be a `forge-object', "mytopic" is not.
+    ;; `default-directory' must be inside the appropriate repository.
+    (forge-get-repository t)
+    ;; Note that it is "commits" not "commit".
+    (format "/repos/:owner/:repo/commits/%s/comments" rev))
+    ;; If that works, try making a request.
+    (forge--ghub-post (forge-get-repository t)
+        (format "/repos/:owner/:repo/commits/%s/comments" rev)
+        '((body . "@JuliaRegistrator register"))
+        :callback  (forge--post-submit-callback)
+        :errorback (forge--post-submit-errorback))))
+;; This yields
+;;   error in process filter: Wrong type argument: arrayp, nil
+;; but it's not an issue.
+#+end_src
+
+#+RESULTS:
+: romeov/julia-registrator-register-current-commit
+*** untracked files
+#+begin_src emacs-lisp :tangle yes
+(after! magit
+  (setq! magit-section-initial-visibility-alist '((stashes . hide) (untracked . hide) )))
+#+end_src
+*** code-review
+#+begin_src emacs-lisp :tangle yes
+(use-package! code-review
+  :config
+  (setq code-review-auth-login-marker 'forge))
+#+end_src
 
 ** Other doom options
 Enable
@@ -142,6 +208,24 @@ Never use =return= or =tab= to autocomplete, instead rely on =C-SPC=.
       ;; (add-hook 'evil-normal-state-entry-hook #'company-abort)
       )
 #+end_src
+** Difftastic
+#+begin_src emacs-lisp :tangle no
+(use-package! difftastic
+  :demand t
+  :bind (:map magit-blame-read-only-mode-map
+         ("D" . difftastic-magit-show)
+         ("S" . difftastic-magit-show))
+  :config
+  (eval-after-load 'magit-diff
+    '(transient-append-suffix 'magit-diff '(-1 -1)
+       [("D" "Difftastic diff (dwim)" difftastic-magit-diff)
+        ("S" "Difftastic show" difftastic-magit-show)])))
+#+end_src
+** Modus themes
+#+begin_src emacs-lisp :tangle yes
+(use-package! modus-themes)
+#+end_src
+
 ** Tramp
 Try to remedy weird slowdown when using projectile and tramp together.
 See https://www.reddit.com/r/emacs/comments/320cvb/projectile_slows_tramp_mode_to_a_crawl_is_there_a/
@@ -154,7 +238,9 @@ Also, for some servers we already have a "Control" setup installed in the ssh co
 For those, we want to remove any control options from the ssh connection, which are currently inserted as "%c" into the tramp method,
 which in turn evaluates =tramp-ssh-controlmaster-options=.
 We define a new ssh connection type here that doesn't override the controlmaster options.
-#+begin_src emacs-lisp :tangle yes
+
+We can actually also tell tramp to delegate the control master stuff to base ssh.
+#+begin_src emacs-lisp :tangle no
 (after! tramp
   (add-to-list 'tramp-methods '("sshnocm"
                                 (tramp-login-program "ssh")
@@ -173,33 +259,96 @@ We define a new ssh connection type here that doesn't override the controlmaster
                                  ("-c")))))
 #+end_src
 
-** Magit
-/This seems to slow magit down by a lot.../
-+Use [[https://github.com/dandavison/delta][rust-delta]] for magit diffs.+
+*** Remote path problems
+Sometimes the remote path doesn't have some stuff that I need. See here: https://stackoverflow.com/a/26649558/5616591
+You can set the following:
 #+begin_src emacs-lisp :tangle yes
-;; (use-package magit-delta
-;;   :hook (magit-mode . magit-delta-mode))
+(after! tramp
+  :config
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+  (setq vterm-tramp-shells '(("docker" "/bin/sh")
+                             ("ssh" "/bin/bash")
+                             ("sshx" "/bin/bash")))
+  (customize-set-variable
+   'tramp-ssh-controlmaster-options
+   (concat
+    "-o ControlPath=/tmp/ssh-ControlPath-%%r@%%h:%%p "
+    "-o ControlMaster=auto -o ControlPersist=yes"))
+  ;; (setq tramp-use-ssh-controlmaster-options nil)
+  )
+#+end_src
+
+** Minibuffer
+#+begin_src emacs-lisp :tangle yes
+(remove-hook! 'doom-escape-hook '+popup-close-on-escape-h)
+#+end_src
+** Avy
+#+begin_src emacs-lisp :tangle yes
+(setq avy-timeout-seconds 0.3)
+#+end_src
+** evil
+make evil-snipe go across the current line (i.e. when pressing =s=)
+#+begin_src emacs-lisp :tangle yes
+(use-package! evil-snipe
+  :config
+  (setq evnil-snipe-scope 'visible))
+#+end_src
+
+** authinfo
+#+begin_src emacs-lisp :tangle yes
+(setq auth-sources '("/home/romeo/.emacs.d/.local/state/authinfo.gpg" "~/.authinfo.gpg" "~/.authinfo"))
+#+end_src
+** agenix
+#+begin_src emacs-lisp :tangle yes
+(use-package! agenix
+  :config
+  ;; (advice-add 'agenix-mode :before
+  ;;         (lambda ()
+  ;;         (run-hooks 'hack-local-variables-hook)))
+  (setq agenix-key-files '( "~/.ssh/hetzner" ))
+  )
 #+end_src
 
 * Eglot
-Use longer connection timeout. Especially imporant in Julia projects.
+Use longer connection timeout. Especially important in Julia projects.
 #+begin_src emacs-lisp :tangle yes
 (after! eglot
   :config
   (setq eglot-connect-timeout 600))
 #+end_src
+** Eglot booster
+Supposedly this speeds up eglot. Probably disable if we have weird eglot issues.
+#+begin_src emacs-lisp :tangle yes
+(use-package! eglot-booster
+	:after eglot
+	:config (eglot-booster-mode))
+#+end_src
+
+* typst
+
+#+begin_src emacs-lisp :tangle no
+(use-package typst-ts-mode
+  :ensure (:type git :host sourcehut :repo "meow_king/typst-ts-mode" :files (:defaults "*.el"))
+  :custom
+  ;; (optional) If you want to ensure your typst tree sitter grammar version is greater than the minimum requirement
+  ;; Note this only check and compare file modification time
+  (typst-ts-mode-grammar-location (expand-file-name "tree-sitter/libtree-sitter-typst.so" user-emacs-directory)))
+#+end_src
+
 * vterm
 ** Always compile module
 When running =doom sync~, sometimes compiling packages depending on vterm
 can get stuck. This should fix it. See [[https://github.com/doomemacs/doomemacs/issues/5592#issuecomment-945919856][this github issue]] for more info.
 
 #+begin_src emacs-lisp :tangle yes
-(use-package! vterm
+(after! vterm
   :config
   (setq vterm-always-compile-module t)
   ;; Remove C-w from auto-insert
-  ;; (push '"C-w" vterm-keymap-exceptions)
-  ;; (map! :map vterm-mode-map "<insert-state> C-w" nil)  ;; This makes it so we can window in vterm
+  (push '"C-w" vterm-keymap-exceptions)
+  (map! :map vterm-mode-map "<insert-state> C-w" evil-window-map)  ;; This makes it so we can window in vterm
+  ;; (map! :map global-map "C-w" nil)
+  ;; (map! :map evil-insert-state-map "C-w" nil)
 )
 #+end_src
 
@@ -230,9 +379,9 @@ This snippet is from [[https://github.com/akermu/emacs-libvterm/issues/313#issue
     (while (> p (point))
       (vterm-send-right)
       (forward-char 1))))
-(evil-define-key 'normal 'vterm-mode-map
-  "i" 'evil-collection-vterm-insert
-  "a" 'evil-collection-vterm-append)
+;;(evil-define-key 'normal 'vterm-mode-map
+;;  "i" 'evil-collection-vterm-insert
+;;  "a" 'evil-collection-vterm-append)
 ;; (evil-define-key 'insert 'vterm-mode-map
 ;;   (kbd "C-w") nil)
 #+end_src
@@ -284,6 +433,13 @@ Add auto-save hook when exiting insert mode.
 This doesn't seem to work though...
 #+begin_src emacs-lisp :tangle yes
 ;; (add-hook! 'evil-insert-state-exit-hook :append (lambda() (call-interactively #'evil-write)))
+#+end_src
+** Chat / Claude keybindings
+#+begin_src emacs-lisp :tangle yes
+(map! :leader
+      (:prefix-map ("C" . "Chat/Claude")
+                   "m" #'gptel-menu
+                   "C" #'gptel))
 #+end_src
 
 ** Python include file
@@ -343,6 +499,8 @@ Note that the numbers correspond to the ~int->char~ in the C sense.
     '(84 ("\\intercal")))
   (add-to-list 'cdlatex-math-modify-alist
     '(84 nil "\\intercal" nil nil nil))
+  (setq TeX-electric-sub-and-superscript nil)
+  (setq TeX-command-extra-options "-shell-escape")
 )
 #+end_src
 
@@ -356,10 +514,9 @@ We replace it with a standalone class.
 ;; ")
 #+end_src
 
-* Language specific
-** Julia
+* Julia
 Don't start eglot by default.
-#+begin_src emacs-lisp :tangle yes
+#+begin_src emacs-lisp :tangle no
 (after! julia-mode
   (setq julia-mode-local-vars-hook (remove-hook 'lsp! 'julia-mode-local-vars-hook)))
 #+end_src
@@ -385,9 +542,62 @@ Try to modify popup rule to make larger repl
 (after! julia
   (set-popup-rule! "^\\julia" :height 0.4 :size 0.5))
 #+end_src
+#+begin_src emacs-lisp :tangle no
+(use-package julia-ts-mode
+  ;; :ensure t
+  ;; :mode "\\.jl$"
+  )
+#+end_src
 
+** Keybinding for activating project
+#+begin_src emacs-lisp :tangle yes
+(map! :map julia-mode-map :localleader
+      "A" (lambda () (interactive)
+            (julia-snail-package-activate (projectile-acquire-root))
+            (julia-snail--send-to-repl
+             (concat "using "
+                     (s-replace
+                      ".jl" ""
+                     (file-name-nondirectory (substring (projectile-acquire-root) 0 -1)))
+                     ))))
+#+end_src
 
-** Python
+* AI stuff
+** GPTel
+#+begin_src emacs-lisp :tangle yes :results none
+(use-package! gptel
+  :config
+
+  (let ((backend-gemini (gptel-make-gemini "Gemini" :key "AIzaSyDUm7TCEbvgpAPXDmWGzDAvfN5iNjah0vA" :stream t))
+        (backend-anthropic (gptel-make-anthropic "Claude"          ;Any name you want
+                             :stream t                             ;Streaming responses
+                             :key #'gptel-api-key-from-auth-source
+                             ))
+        (backend-llama (gptel-make-openai                    ;Not a typo, same API as OpenAI
+                           "llama-cpp"                          ;Any name
+                         :stream t                            ;Stream responses
+                         :protocol "http"
+                         :host "localhost:8081"               ;Llama.cpp server location, typically localhost:8080 for Llamafile
+                         :key nil                             ;No key needed
+                         :models '("test"))))                   ;Any names, doesn't matter for Llama
+
+    (setq-default gptel-backend backend-anthropic
+                  gptel-model "claude-3-5-sonnet-20240620")))
+;; gptel-model   "test")))
+#+end_src
+
+** Copilot
+#+begin_src emacs-lisp :tangle no
+;; accept completion from copilot and fallback to company
+(use-package! copilot
+  :hook (prog-mode . copilot-mode)
+  :bind (:map copilot-completion-map
+              ("<tab>" . 'copilot-accept-completion)
+              ("TAB" . 'copilot-accept-completion)
+              ("C-TAB" . 'copilot-accept-completion-by-word)
+              ("C-<tab>" . 'copilot-accept-completion-by-word)))
+#+end_src
+* Python
 For python, specify some arguments for the ~black~ formatter (line length).
 #+begin_src emacs-lisp :tangle yes
 (after! format
@@ -395,7 +605,14 @@ For python, specify some arguments for the ~black~ formatter (line length).
   )
 #+end_src
 
-*** Poetry
+** Don't start anaconda mode
+#+begin_src emacs-lisp :tangle yes
+(remove-hook! 'python-mode-local-vars-hook '+python-init-anaconda-mode-maybe-h)
+#+end_src
+
+#+RESULTS:
+
+** Poetry
 #+begin_src emacs-lisp :tangle yes
 (after! poetry
   :config
@@ -414,15 +631,108 @@ change `org-directory'. It must be set before org loads!
 (setq org-directory "~/org/")
 #+end_src
 
+** Completion for target and names
+Target:
+#+begin_src emacs-lisp :tangle yes :results none
+(use-package! consult)
+(defun my/org-get-link-to-target ()
+  (interactive)
+  (let* ((elements (org-element-map (org-element-parse-buffer) 'target
+                     (lambda (keyword) (org-element-property :value keyword))))
+         (name (consult--read
+                elements
+                :prompt "Select target: ")))
+    name))
+(org-link-set-parameters "target" :complete #'my/org-get-link-to-target)
+#+end_src
+
+Names (from [[https://libreddit.romeov.me/r/orgmode/comments/y0l90j/how_to_get_completion_for_name_when_creating_links/][here]]).
+#+begin_src emacs-lisp :tangle yes :results none
+(defun my/org-complete-names ()
+  "`completing-read' for org elements with #+NAME in the current buffer."
+  (interactive)
+  (let ((candidates (org-element-map (org-element-parse-buffer) org-element-all-elements
+                      (lambda (arg) (org-element-property :name arg)))))
+    (consult--read candidates
+                   :prompt "Select named element: ")))
+(org-link-set-parameters "name" :complete #'my/org-complete-names)
+#+end_src
+
+
+
+** Org capture
+From https://karelvo.com/blog/orgmode/
+
+#+begin_src emacs-lisp :tangle yes
+(after! org-capture
+  (setq org-capture-templates
+        '(("t" "todo" entry
+           (file+headline "~/org/todo_notes/todo.org" "TODOs")
+           "* TODO %?")
+          ("T" "todo today" entry
+           (file+headline "~/org/todo_notes/todo.org" "TODOs today")
+           "* TODO %?\nDEADLINE: %t")
+          ("i" "inbox" entry
+           (file "~/org/todo_notes/inbox.org")
+           "* %?")
+          ("v" "clip to inbox" entry
+           (file "~/org/todo_notes/inbox.org")
+           "* %x%?")
+          )
+        )
+)
+#+end_src
+** Ctrl-ret keybindings
+#+begin_src emacs-lisp :tangle yes
+(after! org
+  (map! :map evil-org-mode-map
+        "<insert-state> C-<return>" nil
+        "<normal-state> C-<return>" nil)
+  (map! :map org-mode-map
+        "C-<return>" nil
+        "C-<return>" nil)
+  (map! :map evil-org-mode-map
+        "<insert-state> C-<return>" #'org-insert-heading
+        "<normal-state> C-<return>" #'org-insert-heading)
+  (map! :map org-mode-map
+        "C-<return>" #'org-insert-heading
+        "C-<return>" #'org-insert-heading))
+#+end_src
+
+** Element cache
+Currently, we're having a problem rendering equations and other stuff when using the element cache, so we turn it off...
+#+begin_src emacs-lisp :tangle no
+(setq org-element-use-cache nil)
+#+end_src
+
+** Org-screenshot
+#+begin_src emacs-lisp :tangle yes
+(defun my-org-attach-screenshot-insert (linkfilename)
+  "Default function for inserting the image link into the document.
+The image's filename is passed as the only argument `LINKFILENAME'."
+  (insert (concat
+           "#+attr_org: :width 300" "\n"
+           "[[file:" linkfilename "]]")))
+(use-package org-screenshot
+  :config
+  (setq org-attach-screenshot-insertfunction 'my-org-attach-screenshot-insert))
+#+end_src
+** org-download
+#+begin_src emacs-lisp :tangle yes
+(use-package! org-download
+  :config
+  (setq org-download-screenshot-method "grim -g \"$(slurp)\" %s"))
+#+end_src
+
 ** Bugs
 I get a ~org-element-with-disabled-cache~ error, so we disable the element cache for now (whatever that means).
-#+begin_src emacs-lisp :tangle yes
+#+begin_src emacs-lisp :tangle no
 (setq org-element-use-cache nil)
 
 #+end_src
 
 ** org appear
-#+begin_src emacs-lisp :tangle yes
+#+begin_src emacs-lisp :tangle no
 (add-hook! org-mode
     'org-appear-mode)
 #+end_src
@@ -430,7 +740,7 @@ I get a ~org-element-with-disabled-cache~ error, so we disable the element cache
 ** babel -> minted
 Translate ~ob-julia~ blocks to ~minted~ environments in latex.
 #+begin_src emacs-lisp :tangle yes
-(add-hook! org-mode
+;; (add-hook! org-mode
   ;; (add-to-list 'org-latex-packages-alist '("" "algorithm2e"))
 ;;   (setq org-latex-custom-lang-environments
 ;;       '(
@@ -450,12 +760,14 @@ Translate ~ob-julia~ blocks to ~minted~ environments in latex.
 ;; \\caption{%c}
 ;; \\label{%l}\\end{%f}")
 ;;         ))
-  (add-to-list 'org-babel-load-languages '(julia . t))
-  (add-to-list 'org-babel-load-languages '(julia-vterm . t))
-  (org-babel-do-load-languages 'org-babel-load-languages org-babel-load-languages)
+  ;; (add-to-list 'org-babel-load-languages '(julia . t))
+  ;; (add-to-list 'org-babel-load-languages '(julia-vterm . t))
+  ;; (org-babel-do-load-languages 'org-babel-load-languages org-babel-load-languages)
   ;; (setq org-babel-execute:julia 'org-babel-execute:julia-vterm)
-)
+;; )
 #+end_src
+
+#+RESULTS:
 
 ** Export to latex
 Configure using ~tufte_algorithms_book~ template.
@@ -480,8 +792,11 @@ Configure using ~tufte_algorithms_book~ template.
 
 Make sure ~julia~ source blocks are run as ~julia-vterm~.
 #+begin_src emacs-lisp :tangle yes
-(setq lsp-julia-default-environment "~/.julia/environments/v1.9")
-(setq eglot-jl-language-server-project "~/.julia/environments/v1.9")
+(use-package! eglot-jl
+  :config
+  (setq eglot-jl-language-server-project "~/.julia/environments/v1.10")
+  (setq max-mini-window-height 0.1) ;; preview window for eldoc
+  )
 ;; (use-package! ob-julia-vterm
 ;;   :config
 ;;   (defalias 'org-babel-execute:julia 'org-babel-execute:julia-vterm)
@@ -490,7 +805,7 @@ Make sure ~julia~ source blocks are run as ~julia-vterm~.
 #+end_src
 
 
-** Latex subfigure :export nil
+** Latex subfigure
 /Note, this doesn't work anymore atm.../
 Custom script to parse ~subcaption~ figures. See https://github.com/linktohack/ox-latex-subfigure.
 
@@ -505,7 +820,8 @@ Custom script to parse ~subcaption~ figures. See https://github.com/linktohack/o
 ** Citations and bibliography
 Configure bibliography.
 #+begin_src emacs-lisp :tangle yes
-(after! citar
+(use-package! citar
+  :config
   (setq! citar-bibliography '("/home/romeo/Zotero/zotero-bibliography.bib" "/home/romeo/org/roam/fefe-on-crypto.bib"))
   (setq! citar-notes-paths '("/home/romeo/org/roam/Notes"))
   (setq! citar-at-point-function 'embark-act)
@@ -532,9 +848,117 @@ Only now to get =a_{\rm foo}= we have to also press ~C-c~ twice, but so be it.
 ;; also consider setting variable Tex-electric-sub-and-superscript to nil
 #+end_src
 
-* Tree-sitter
-** Evil textobs
+** Agenda
+Make the agenda filename column longer
+#+begin_src emacs-lisp :tangle yes :results none
+(after! org
+        (setq org-agenda-prefix-format
+        '((agenda . " %i %-10:c%?-16t% s")  ;; '%-20' sets 20 char width field for the agenda "filename"
+          (todo   . " %i %-10:c")
+          (tags   . " %i %-12:c")
+          (search . " %i %-12:c"))))
+#+end_src
+
+Some other tips from the workflow blog: https://karelvo.com/blog/orgmode/
+
+- View today and +6 days
+- List overdue tasks to today, with the number of days it’s overdue
+- +No “deadline coming up” mentions in the agenda (I found them annoying)+
+- Only show TODO and WAIT tasks, not DONE and KILL
+
 #+begin_src emacs-lisp :tangle yes
+(after! org
+  (setq org-agenda-span 14
+        org-agenda-start-day "-0d"
+        org-deadline-warning-days 0
+
+        org-agenda-deadline-leaders
+          '("" "" "-%2d d.: ")
+
+        org-agenda-skip-function-global
+          '(org-agenda-skip-entry-if 'todo 'done)
+        org-log-done 'time)
+)
+#+end_src
+** Writeroom
+Don't turn on the mixed pitch mode in writeroom mode...
+#+begin_src emacs-lisp :tangle yes
+(use-package! writeroom-mode
+  :config
+  (remove-hook 'writeroom-mode-hook
+    #'+zen-enable-mixed-pitch-mode-h))
+#+end_src
+
+#+RESULTS:
+: t
+** Org-tufte export
+#+begin_src emacs-lisp :tangle yes
+(use-package! org-tufte
+  )
+;; (use-package! ox-tufte)
+
+#+end_src
+** Image width
+* Markdown
+** enable eww preview with refresh
+
+First, open another window and run ~eww-open~. Then, in the markdown buffer export with ~SPACE m e~ and then call ~romeov/reload-eww~.
+#+begin_src emacs-lisp :tangle yes
+(defun romeov/reload-eww ()
+    (interactive)
+    (save-window-excursion
+        (other-window 1)
+        (if (derived-mode-p 'eww-mode)
+            (eww-reload)
+            (let ((current-mode ( buffer-local-value 'major-mode (current-buffer))))
+                (message "Current mode: %s" (symbol-name current-mode)))
+          )))
+(add-hook
+    'markdown-after-export-hook
+    #'romeov/reload-eww
+ )
+#+end_src
+
+#+RESULTS:
+: romeov/reload-eww
+
+* Tree-sitter
+** ts-movement
+#+begin_src emacs-lisp :tangle no
+(use-package! ts-movement
+  :config
+  (map! :map evil-visual-state-map
+        "M-o" #'tsm/node-parent
+        "M-i" #'tsm/node-child
+        "M-n" #'tsm/node-next
+        "M-p" #'tsm/node-prev
+        "M-a" #'tsm/node-start
+        "M-e" #'tsm/node-end
+        "M-m" #'tsm/node-mark
+        "M-l" #'tsm/delete-overlay-at-point
+:map evil-normal-state-map
+            "M-S-l" #'tsm/clear-overlays
+        )
+  (advice-add 'evil-force-normal-state :after 'tsm/delete-overlay-at-point)
+  )
+
+#+end_src
+** Evil textobs
+#+begin_src emacs-lisp :tangle no
+;; (use-package! evil-ts
+;;   :config
+;;   (after! evil-ts
+;;     (require 'rx)
+;;     (evil-define-text-object my-julia-fn-def (count &optional beg end type)
+;;         (evil-ts-select-obj "function_definition"))
+;;     (evil-define-text-object my-julia-struct-def (count &optional beg end type)
+;;         (evil-ts-select-obj "struct_definition"))))
+;; (map! :map evil-inner-text-objects-map
+;;       "F" #'my-julia-fn-def
+;;       "S" #'my-julia-struct-def)
+;; (map! :map evil-outer-text-objects-map
+;;       "F" #'my-julia-fn-def
+;;       "S" #'my-julia-struct-def)
 (use-package! evil-textobj-tree-sitter
   :config
   ;; bind `function.outer`(entire function block) to `f` for use in things like `vaf`, `yaf`
@@ -542,108 +966,44 @@ Only now to get =a_{\rm foo}= we have to also press ~C-c~ twice, but so be it.
   ;; bind `function.inner`(function block without name and args) to `f` for use in things like `vif`, `yif`
   (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner")))
 #+end_src
-** Language sources
-#+begin_src emacs-lisp :tangle yes
-(setq treesit-language-source-alist
-   '((bash "https://github.com/tree-sitter/tree-sitter-bash")
-     (cmake "https://github.com/uyha/tree-sitter-cmake")
-     (elisp "https://github.com/Wilfred/tree-sitter-elisp")
-     (go "https://github.com/tree-sitter/tree-sitter-go")
-     (html "https://github.com/tree-sitter/tree-sitter-html")
-     (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
-     (julia "https://github.com/tree-sitter/tree-sitter-julia")
-     (json "https://github.com/tree-sitter/tree-sitter-json")
-     (make "https://github.com/alemuller/tree-sitter-make")
-     (markdown "https://github.com/ikatyang/tree-sitter-markdown")
-     (org "https://github.com/milisims/tree-sitter-org")
-     (python "https://github.com/tree-sitter/tree-sitter-python")
-     (toml "https://github.com/tree-sitter/tree-sitter-toml")
-     (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
+
+
+
+
+** Remapping the modes :noexport:
+#+begin_src emacs-lisp :tangle no
+(use-package! treesit
+  :preface
+  (dolist (mapping '((julia-mode . julia-ts-mode)
+                     (python-mode . python-ts-mode)))
+    (add-to-list 'major-mode-remap-alist mapping))
+  :config
+  ;; (mp-setup-install-grammars)
+  ;; Do not forget to customize Combobulate to your liking:
+  ;;
+  ;;  M-x customize-group RET combobulate RET
+  )
 #+end_src
 
-** Old
-This is from the official doom config, but tries to use the inbuilt tree-sitter.
-See [[https://github.com/doomemacs/doomemacs/blob/master/modules/tools/tree-sitter/config.el][the config on github]].
-Note that this is currently ~:noeval~
-# #+begin_src emacs-lisp :tangle yes :noeval
-;;; tools/tree-sitter/config.el -*- lexical-binding: t; -*-
-(defvar +tree-sitter-hl-enabled-modes '(not web-mode typescript-tsx-mode)
-  "A list of major modes which should be highlighted by tree-sitter.
+#+begin_src emacs-lisp :tangle no
+(use-package! combobulate
+  :preface
+  ;; You can customize Combobulate's key prefix here.
+  ;; Note that you may have to restart Emacs for this to take effect!
+  (setq combobulate-key-prefix "C-c o")
 
-If this list begins with `not', then it negates the list.
-If it is t, it is enabled in all modes.
-If nil, it is disabled in all modes")
-
-;;
-;;; Packages
-
-;; This is actually built-in now!
-;; (use-package! tree-sitter
-;;   :defer t
-;;   :config
-;;   (require 'tree-sitter-langs)
-;;   ;; This makes every node a link to a section of code
-;;   (setq tree-sitter-debug-jump-buttons t
-;;         ;; and this highlights the entire sub tree in your code
-;;         tree-sitter-debug-highlight-jump-region t))
+  ;; Optional, but recommended.
+  ;;
+  ;; You can manually enable Combobulate with `M-x
+  ;; combobulate-mode'.
+  :hook ((julia-ts-mode . combobulate-mode)
+         (python-ts-mode . combobulate-mode))
+  ;; Amend this to the directory where you keep Combobulate's source
+  ;; code.
+  )
+#+end_src
 
 
-(use-package! evil-textobj-tree-sitter
-  :when (modulep! :editor evil +everywhere)
-  :defer t
-  :init (after! tree-sitter (require 'evil-textobj-tree-sitter))
-  :config
-  (defvar +tree-sitter-inner-text-objects-map (make-sparse-keymap))
-  (defvar +tree-sitter-outer-text-objects-map (make-sparse-keymap))
-  (defvar +tree-sitter-goto-previous-map (make-sparse-keymap))
-  (defvar +tree-sitter-goto-next-map (make-sparse-keymap))
-
-  (evil-define-key '(visual operator) 'tree-sitter-mode
-    "i" +tree-sitter-inner-text-objects-map
-    "a" +tree-sitter-outer-text-objects-map)
-  (evil-define-key 'normal 'tree-sitter-mode
-    "[g" +tree-sitter-goto-previous-map
-    "]g" +tree-sitter-goto-next-map)
-
-  (map! (:map +tree-sitter-inner-text-objects-map
-         "A" (+tree-sitter-get-textobj '("parameter.inner" "call.inner"))
-         "f" (+tree-sitter-get-textobj "function.inner")
-         "F" (+tree-sitter-get-textobj "call.inner")
-         "C" (+tree-sitter-get-textobj "class.inner")
-         "v" (+tree-sitter-get-textobj "conditional.inner")
-         "l" (+tree-sitter-get-textobj "loop.inner"))
-        (:map +tree-sitter-outer-text-objects-map
-         "A" (+tree-sitter-get-textobj '("parameter.outer" "call.outer"))
-         "f" (+tree-sitter-get-textobj "function.outer")
-         "F" (+tree-sitter-get-textobj "call.outer")
-         "C" (+tree-sitter-get-textobj "class.outer")
-         "c" (+tree-sitter-get-textobj "comment.outer")
-         "v" (+tree-sitter-get-textobj "conditional.outer")
-         "l" (+tree-sitter-get-textobj "loop.outer"))
-
-        (:map +tree-sitter-goto-previous-map
-         "a" (+tree-sitter-goto-textobj "parameter.outer" t)
-         "f" (+tree-sitter-goto-textobj "function.outer" t)
-         "F" (+tree-sitter-goto-textobj "call.outer" t)
-         "C" (+tree-sitter-goto-textobj "class.outer" t)
-         "c" (+tree-sitter-goto-textobj "comment.outer" t)
-         "v" (+tree-sitter-goto-textobj "conditional.outer" t)
-         "l" (+tree-sitter-goto-textobj "loop.outer" t))
-        (:map +tree-sitter-goto-next-map
-         "a" (+tree-sitter-goto-textobj "parameter.outer")
-         "f" (+tree-sitter-goto-textobj "function.outer")
-         "F" (+tree-sitter-goto-textobj "call.outer")
-         "C" (+tree-sitter-goto-textobj "class.outer")
-         "c" (+tree-sitter-goto-textobj "comment.outer")
-         "v" (+tree-sitter-goto-textobj "conditional.outer")
-         "l" (+tree-sitter-goto-textobj "loop.outer")))
-
-  (after! which-key
-    (setq which-key-allow-multiple-replacements t)
-    (pushnew!
-     which-key-replacement-alist
-     '(("" . "\\`+?evil-textobj-tree-sitter-function--\\(.*\\)\\(?:.inner\\|.outer\\)") . (nil . "\\1")))))
-# #+end_src
 
 * org-ai
 
@@ -657,4 +1017,14 @@ If nil, it is disabled in all modes")
   ;; if you are using yasnippet and want `ai` snippets
   (org-ai-install-yasnippets)
   )
+#+end_src
+
+* symex (disabled)  :noexport:
+This is supposed to integrate with treesitter to provide structural editing...
+#+begin_src emacs-lisp :tangle no
+(use-package! symex
+  :config
+  (symex-initialize))  ; or whatever keybinding you like
+(map! :map evil-normal-state-map
+      "|" #'symex-mode-interface)
 #+end_src
